@@ -1,0 +1,76 @@
+# Django
+*.pyc
+__pycache__/
+*.pyo
+*.pyd
+.Python
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+*.sqlite3
+media/
+staticfiles/
+db.sqlite3
+local_settings.py
+.vscode/
+.idea/
+*.log
+
+# Node.js/React
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.DS_Store
+.next/
+out/
+build/
+dist/
+*.log
+logs/
+.cache/
+
+# Python
+venv/
+env/
+ENV/
+.virtualenv/
+.pytest_cache/
+.tox/
+.coverage
+htmlcov/
+
+# Database
+*.db
+*.sqlite3
+
+# OS
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+.DS_Store?
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.project
+.settings/
+*.sublime-*
+
+# Docker
+docker-compose.override.yml
+
+# Secrets
+secrets.py
+config.py
+settings/local.py
+
+# Temporary files
+*.tmp
+*.temp
+*.bak

@@ -1,0 +1,11 @@
+models:
+  - title: "DeepSeek Coder"
+    provider: "ollama"
+    model: "deepseek-coder-v2:16b"
+    apiBase: "http://localhost:11434"
+
+tabAutocompleteModel:
+  title: "DeepSeek Coder"
+  provider: "ollama"
+  model: "deepseek-coder-v2:16b"
+  apiBase: "http://localhost:11434"
