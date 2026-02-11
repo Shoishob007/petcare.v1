@@ -46,6 +46,10 @@ htmlcov/
 *.db
 *.sqlite3
 
+# Uploads
+uploads/
+backend/uploads/
+
 # OS
 Thumbs.db
 ehthumbs.db
