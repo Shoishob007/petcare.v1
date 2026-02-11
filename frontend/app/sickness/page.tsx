@@ -251,130 +251,133 @@ export default function SicknessPage() {
   }
 
   return (
-    <main className="page">
-      <header className="hero">
-        <MainNav />
-        <div className="page-header">
-          <p className="eyebrow">Known sickness</p>
-          <h1>Quick reference for symptoms, remedies, and care priority.</h1>
-          <p className="subtext">
-            Use this guide to identify common issues and document the right next
-            steps.
-          </p>
-          <div className="hero-actions">
-            <Button type="button" onClick={() => setCreateOpen(true)}>
-              Add condition
-            </Button>
-            <Button variant="ghost" type="button" onClick={fetchSicknesses}>
-              {loading ? "Refreshing..." : "Refresh"}
-            </Button>
-          </div>
-        </div>
-      </header>
+    <main className="min-h-screen bg-background page-shell">
+      <MainNav />
 
-      <section className="panel-spaced two-column">
-        <div className="panel">
-          <div className="panel-header">
-            <h2>Care guide goals</h2>
-            <p>Make symptoms and remedies easy to follow.</p>
+      <div className="page">
+        <header className="hero">
+          <div className="page-header">
+            <p className="eyebrow">Known sickness</p>
+            <h1>Quick reference for symptoms, remedies, and care priority.</h1>
+            <p className="subtext">
+              Use this guide to identify common issues and document the right
+              next steps.
+            </p>
+            <div className="hero-actions">
+              <Button type="button" onClick={() => setCreateOpen(true)}>
+                Add condition
+              </Button>
+              <Button variant="ghost" type="button" onClick={fetchSicknesses}>
+                {loading ? "Refreshing..." : "Refresh"}
+              </Button>
+            </div>
           </div>
-          <ul className="feature-list">
-            <li>Document common symptoms so care teams respond faster.</li>
-            <li>Capture remedies that help stabilize pets quickly.</li>
-            <li>Flag critical cases with high severity.</li>
-          </ul>
-        </div>
-        <div className="panel">
-          <div className="panel-header">
-            <h2>Quick filters</h2>
-            <p>Find conditions faster.</p>
-          </div>
-          <div className="form-grid">
-            <label className="field">
-              Search
-              <input
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="Search symptoms or remedies"
-              />
-            </label>
-            <Dropdown
-              label="Severity"
-              value={severityFilter}
-              onChange={setSeverityFilter}
-              options={SEVERITY_OPTIONS}
-            />
-          </div>
-        </div>
-      </section>
+        </header>
 
-      <section className="panel panel-spaced">
-        <div className="panel-header">
-          <div>
-            <h2>Condition library</h2>
-            <p className="subtext">{filtered.length} conditions shown</p>
+        <section className="panel-spaced two-column">
+          <div className="panel">
+            <div className="panel-header">
+              <h2>Care guide goals</h2>
+              <p>Make symptoms and remedies easy to follow.</p>
+            </div>
+            <ul className="feature-list">
+              <li>Document common symptoms so care teams respond faster.</li>
+              <li>Capture remedies that help stabilize pets quickly.</li>
+              <li>Flag critical cases with high severity.</li>
+            </ul>
           </div>
-        </div>
-        {loading && items.length === 0 && <p>Loading...</p>}
-        {error && <p className="error">{error}</p>}
-        <div className="grid-list">
-          {filtered.map((item) => (
-            <article key={item.id} className="sickness-card">
-              <div className="card-header">
-                <h3>{item.name}</h3>
-                {item.severity && (
-                  <span className="pill">{formatLabel(item.severity)}</span>
-                )}
-              </div>
-              <p>{item.summary}</p>
-              {item.images?.length > 0 && (
-                <MediaGrid
-                  items={item.images.map((image) => ({
-                    id: image.id,
-                    src: `${API_ROOT}${image.url}`,
-                    alt: item.name,
-                  }))}
+          <div className="panel">
+            <div className="panel-header">
+              <h2>Quick filters</h2>
+              <p>Find conditions faster.</p>
+            </div>
+            <div className="form-grid">
+              <label className="field">
+                Search
+                <input
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder="Search symptoms or remedies"
                 />
-              )}
-              {item.species && (
-                <div className="report-meta">
-                  <span>{item.species}</span>
+              </label>
+              <Dropdown
+                label="Severity"
+                value={severityFilter}
+                onChange={setSeverityFilter}
+                options={SEVERITY_OPTIONS}
+              />
+            </div>
+          </div>
+        </section>
+
+        <section className="panel panel-spaced">
+          <div className="panel-header">
+            <div>
+              <h2>Condition library</h2>
+              <p className="subtext">{filtered.length} conditions shown</p>
+            </div>
+          </div>
+          {loading && items.length === 0 && <p>Loading...</p>}
+          {error && <p className="error">{error}</p>}
+          <div className="grid-list">
+            {filtered.map((item) => (
+              <article key={item.id} className="sickness-card">
+                <div className="card-header">
+                  <h3>{item.name}</h3>
+                  {item.severity && (
+                    <span className="pill">{formatLabel(item.severity)}</span>
+                  )}
                 </div>
-              )}
-              {item.symptoms && (
-                <div>
-                  <strong>Symptoms</strong>
-                  <p>{item.symptoms}</p>
+                <p>{item.summary}</p>
+                {item.images?.length > 0 && (
+                  <MediaGrid
+                    items={item.images.map((image) => ({
+                      id: image.id,
+                      src: `${API_ROOT}${image.url}`,
+                      alt: item.name,
+                    }))}
+                  />
+                )}
+                {item.species && (
+                  <div className="report-meta">
+                    <span>{item.species}</span>
+                  </div>
+                )}
+                {item.symptoms && (
+                  <div>
+                    <strong>Symptoms</strong>
+                    <p>{item.symptoms}</p>
+                  </div>
+                )}
+                {item.remedies && (
+                  <div>
+                    <strong>Remedies</strong>
+                    <p>{item.remedies}</p>
+                  </div>
+                )}
+                <div className="card-actions">
+                  <Button
+                    variant="subtle"
+                    size="sm"
+                    type="button"
+                    onClick={() => openEdit(item)}
+                  >
+                    Edit
+                  </Button>
+                  <Button
+                    variant="danger"
+                    size="sm"
+                    type="button"
+                    onClick={() => openDelete(item)}
+                  >
+                    Delete
+                  </Button>
                 </div>
-              )}
-              {item.remedies && (
-                <div>
-                  <strong>Remedies</strong>
-                  <p>{item.remedies}</p>
-                </div>
-              )}
-              <div className="card-actions">
-                <Button
-                  variant="subtle"
-                  size="sm"
-                  type="button"
-                  onClick={() => openEdit(item)}
-                >
-                  Edit
-                </Button>
-                <Button
-                  variant="danger"
-                  size="sm"
-                  type="button"
-                  onClick={() => openDelete(item)}
-                >
-                  Delete
-                </Button>
-              </div>
-            </article>
-          ))}
-        </div>
-      </section>
+              </article>
+            ))}
+          </div>
+        </section>
+      </div>
 
       <Dialog
         open={createOpen}

@@ -17,6 +17,7 @@ import { Card } from "../components/ui/card";
 import { Badge } from "../components/ui/badge";
 import { EmptyState, PageSection } from "../components/shared";
 import { useToast } from "../components/Toast";
+import MediaGrid from "../components/MediaGrid";
 
 type FeedImage = {
   id: string;
@@ -37,6 +38,14 @@ type FeedItem = {
   reaction_count?: number;
 };
 
+type FeedComment = {
+  id: string;
+  body: string;
+  author_name?: string | null;
+  parent_id?: string | null;
+  created_at: string;
+};
+
 const API_ROOT = "http://127.0.0.1:8000";
 const API_BASE = `${API_ROOT}/api/v1`;
 const PAGE_SIZE = 12;
@@ -52,6 +61,15 @@ export default function FeedPage() {
   const [error, setError] = useState<string | null>(null);
   const [offset, setOffset] = useState(0);
   const [hasMore, setHasMore] = useState(true);
+  const [commentsOpen, setCommentsOpen] = useState<Record<string, boolean>>({});
+  const [commentsByItem, setCommentsByItem] = useState<
+    Record<string, FeedComment[]>
+  >({});
+  const [commentDraft, setCommentDraft] = useState<Record<string, string>>({});
+  const [replyDraft, setReplyDraft] = useState<Record<string, string>>({});
+  const [replyTarget, setReplyTarget] = useState<Record<string, string | null>>(
+    {},
+  );
 
   const categoryOptions = [
     { label: "All categories", value: "all" },
@@ -147,264 +165,512 @@ export default function FeedPage() {
     return date.toLocaleDateString();
   };
 
+  const buildThreads = (comments: FeedComment[]) => {
+    const repliesByParent: Record<string, FeedComment[]> = {};
+    const roots: FeedComment[] = [];
+    comments.forEach((comment) => {
+      if (comment.parent_id) {
+        repliesByParent[comment.parent_id] =
+          repliesByParent[comment.parent_id] || [];
+        repliesByParent[comment.parent_id].push(comment);
+      } else {
+        roots.push(comment);
+      }
+    });
+
+    const sortByDate = (a: FeedComment, b: FeedComment) =>
+      new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+
+    roots.sort(sortByDate);
+    Object.values(repliesByParent).forEach((list) => list.sort(sortByDate));
+
+    return roots.map((root) => ({
+      root,
+      replies: repliesByParent[root.id] || [],
+    }));
+  };
+
+  const getItemKey = (item: FeedItem) => `${item.item_type}:${item.id}`;
+
+  const getCommentsUrl = (item: FeedItem) =>
+    item.item_type === "report"
+      ? `${API_BASE}/reports/${item.id}/comments`
+      : `${API_BASE}/community-posts/${item.id}/comments`;
+
+  async function fetchComments(item: FeedItem) {
+    const res = await fetch(getCommentsUrl(item), { cache: "no-store" });
+    if (!res.ok) {
+      throw new Error(`Failed to load comments (${res.status})`);
+    }
+    const data = (await res.json()) as FeedComment[];
+    setCommentsByItem((prev) => ({ ...prev, [getItemKey(item)]: data }));
+  }
+
+  async function toggleComments(item: FeedItem) {
+    const itemKey = getItemKey(item);
+    const open = !commentsOpen[itemKey];
+    setCommentsOpen((prev) => ({ ...prev, [itemKey]: open }));
+    if (!open) {
+      setReplyTarget((prev) => ({ ...prev, [itemKey]: null }));
+    }
+    if (open && !commentsByItem[itemKey]) {
+      try {
+        await fetchComments(item);
+      } catch (e) {
+        const errorMsg =
+          e instanceof Error ? e.message : "Error loading comments";
+        setError(errorMsg);
+        toast.error(errorMsg);
+      }
+    }
+  }
+
+  async function submitComment(item: FeedItem, parentId?: string | null) {
+    const itemKey = getItemKey(item);
+    const draftKey = parentId ? `${itemKey}:${parentId}` : itemKey;
+    const draft = parentId ? replyDraft[draftKey] : commentDraft[itemKey];
+    if (!draft?.trim()) return;
+
+    try {
+      const res = await fetch(getCommentsUrl(item), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          body: draft.trim(),
+          parent_id: parentId || undefined,
+        }),
+      });
+      if (!res.ok) {
+        throw new Error(`Failed to add comment (${res.status})`);
+      }
+      const created = (await res.json()) as FeedComment;
+      setCommentsByItem((prev) => ({
+        ...prev,
+        [itemKey]: [...(prev[itemKey] || []), created],
+      }));
+      if (parentId) {
+        setReplyDraft((prev) => ({ ...prev, [draftKey]: "" }));
+        setReplyTarget((prev) => ({ ...prev, [itemKey]: null }));
+      } else {
+        setCommentDraft((prev) => ({ ...prev, [itemKey]: "" }));
+      }
+    } catch (e) {
+      const errorMsg = e instanceof Error ? e.message : "Error posting comment";
+      setError(errorMsg);
+      toast.error(errorMsg);
+    }
+  }
+
   return (
-    <main className="min-h-screen bg-background">
+    <main className="min-h-screen bg-background page-shell">
       <MainNav />
 
-      {/* Hero Section */}
-      <section className="bg-gradient-to-b from-primary/5 to-transparent border-b">
-        <div className="max-w-7xl mx-auto px-4 py-12 md:py-16">
-          <h1 className="text-4xl md:text-5xl font-bold mb-4">
-            Community Feed
-          </h1>
-          <p className="text-lg text-muted-foreground max-w-2xl">
-            Stay connected with your pet community. Discover reports, health
-            tips, and care updates from neighbors and professionals.
-          </p>
-        </div>
-      </section>
-
-      <div className="max-w-7xl mx-auto px-4 py-8">
-        {/* Toolbar */}
-        <div className="mb-8 space-y-4">
-          <div className="flex items-center gap-2">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <input
-                type="text"
-                placeholder="Search posts, people, locations..."
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 rounded-lg border border-input focus:outline-none focus:ring-2 focus:ring-ring"
-              />
+      <div className="page">
+        {/* Hero Section */}
+        <header className="community-hero">
+          <div className="community-hero-content">
+            <div>
+              <p className="eyebrow">Your unified feed</p>
+              <h1>Stay updated on reports, posts, and community moments.</h1>
+              <p className="subtext">
+                Keep track of lost pets, sightings, care updates, and
+                neighborhood support all in one place.
+              </p>
             </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => fetchFeed(true)}
-              disabled={loading}
-            >
-              <RefreshCw className="w-4 h-4 mr-2" />
-              {loading ? "Refreshing..." : "Refresh"}
-            </Button>
-          </div>
-
-          <div className="flex flex-wrap gap-2 items-center">
-            <Filter className="w-4 h-4 text-muted-foreground" />
-
-            <select
-              value={typeFilter}
-              onChange={(e) => setTypeFilter(e.target.value)}
-              className="px-3 py-2 rounded-lg border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-            >
-              <option value="all">All Types</option>
-              <option value="report">Reports</option>
-              <option value="community">Community</option>
-            </select>
-
-            <select
-              value={categoryFilter}
-              onChange={(e) => setCategoryFilter(e.target.value)}
-              className="px-3 py-2 rounded-lg border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-            >
-              {categoryOptions.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-
-            <div className="ml-auto text-sm text-muted-foreground">
-              {filteredItems.length}{" "}
-              {filteredItems.length === 1 ? "post" : "posts"}
+            <div className="community-hero-actions">
+              <Button type="button" onClick={() => fetchFeed(true)}>
+                {loading && filteredItems.length === 0
+                  ? "Refreshing..."
+                  : "Refresh feed"}
+              </Button>
             </div>
           </div>
-        </div>
+        </header>
 
-        {/* Error */}
-        {error && (
-          <div className="mb-6 p-4 rounded-lg bg-red-50 border border-red-200 text-red-800">
-            {error}
+        {/* Info Panels */}
+        <section className="panel-spaced two-column">
+          <div className="panel">
+            <div className="panel-header">
+              <h2>Feed highlights</h2>
+              <p>What you'll discover here.</p>
+            </div>
+            <div className="resource-list">
+              <div className="support-card">
+                <strong>Lost & found reports</strong>
+                <span>Track urgent pet recovery efforts in your area.</span>
+              </div>
+              <div className="support-card">
+                <strong>Community updates</strong>
+                <span>
+                  Connect with neighbors on care tips and wellness advice.
+                </span>
+              </div>
+              <div className="support-card">
+                <strong>Sighting alerts</strong>
+                <span>
+                  Get notified when help is needed or progress is made.
+                </span>
+              </div>
+            </div>
           </div>
-        )}
 
-        {/* Loading */}
-        {loading && filteredItems.length === 0 && (
-          <div className="text-center py-12">
-            <p className="text-muted-foreground">Loading feed...</p>
+          <div className="panel">
+            <div className="panel-header">
+              <h2>Staying organized</h2>
+              <p>Use filters to focus your search.</p>
+            </div>
+            <ul className="feature-list">
+              <li>Search by location, pet type, or keywords.</li>
+              <li>Filter by report type to find what matters most to you.</li>
+              <li>Engage through comments and shares to help neighbors.</li>
+            </ul>
           </div>
-        )}
+        </section>
 
-        {/* Empty State */}
-        {!loading && filteredItems.length === 0 && (
-          <EmptyState
-            icon="📭"
-            title="No posts found"
-            description="Try adjusting your filters or search terms"
-            action={{
-              label: "Create a Report",
-              onClick: () => (window.location.href = "/reports"),
-            }}
-          />
-        )}
-
-        {/* Feed Grid */}
-        {filteredItems.length > 0 && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
-            {filteredItems.map((item) => (
-              <Card
-                key={`${item.item_type}-${item.id}`}
-                className="overflow-hidden hover:shadow-lg transition-shadow"
+        <section className="panel panel-spaced">
+          <div className="panel-header">
+            <div>
+              <h2>Latest updates</h2>
+              <p className="subtext">{filteredItems.length} posts shown</p>
+            </div>
+            <div className="feed-filters">
+              <select
+                value={typeFilter}
+                onChange={(e) => setTypeFilter(e.target.value)}
+                className="px-3 py-2 rounded-lg border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
               >
-                {/* Image Section */}
-                <div className="relative w-full h-48 bg-muted overflow-hidden group">
-                  {(item.images.length > 0 || item.image_url) && (
-                    <img
-                      src={
-                        item.images.length > 0
-                          ? `${API_ROOT}${item.images[0].url}`
-                          : item.image_url?.startsWith("/uploads/")
+                <option value="all">All Types</option>
+                <option value="report">Reports</option>
+                <option value="community">Community</option>
+              </select>
+
+              <select
+                value={categoryFilter}
+                onChange={(e) => setCategoryFilter(e.target.value)}
+                className="px-3 py-2 rounded-lg border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+              >
+                {categoryOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+
+              <label className="field">
+                Search
+                <input
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder="Search posts"
+                />
+              </label>
+            </div>
+          </div>
+
+          {/* Error */}
+          {error && (
+            <div className="mb-6 p-4 rounded-lg bg-red-50 border border-red-200 text-red-800">
+              {error}
+            </div>
+          )}
+
+          {/* Loading */}
+          {loading && filteredItems.length === 0 && (
+            <div className="text-center py-12">
+              <p className="text-muted-foreground">Loading feed...</p>
+            </div>
+          )}
+
+          {/* Empty State */}
+          {!loading && filteredItems.length === 0 && (
+            <EmptyState
+              icon="📭"
+              title="No posts found"
+              description="Try adjusting your filters or search terms"
+              action={{
+                label: "Create a Report",
+                onClick: () => (window.location.href = "/reports"),
+              }}
+            />
+          )}
+
+          {/* Feed Grid */}
+          {filteredItems.length > 0 && (
+            <div className="feed-list">
+              {filteredItems.map((item) => {
+                const itemKey = getItemKey(item);
+                const itemComments = commentsByItem[itemKey] || [];
+                const isCommentsOpen = commentsOpen[itemKey];
+                const replyKey = replyTarget[itemKey]
+                  ? `${itemKey}:${replyTarget[itemKey]}`
+                  : itemKey;
+                const threads = buildThreads(itemComments);
+                const mediaItems = item.images.length
+                  ? item.images.map((image) => ({
+                      id: image.id,
+                      src: `${API_ROOT}${image.url}`,
+                      alt: item.title,
+                    }))
+                  : item.image_url
+                    ? [
+                        {
+                          id: `${item.id}-image`,
+                          src: item.image_url.startsWith("/uploads/")
                             ? `${API_ROOT}${item.image_url}`
-                            : item.image_url || ""
-                      }
-                      alt={item.title}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                    />
-                  )}
+                            : item.image_url,
+                          alt: item.title,
+                        },
+                      ]
+                    : [];
 
-                  {item.images.length > 1 && (
-                    <div className="absolute top-2 right-2 bg-black/60 text-white px-2 py-1 rounded text-xs font-medium">
-                      +{item.images.length - 1}
+                return (
+                  <Card
+                    key={`${item.item_type}-${item.id}`}
+                    className="self-start overflow-hidden border border-border/60 shadow-sm hover:shadow-md transition-shadow"
+                  >
+                    {mediaItems.length > 0 && (
+                      <div className="px-4 pt-4">
+                        <MediaGrid items={mediaItems} />
+                      </div>
+                    )}
+
+                    {/* Content Section */}
+                    <div className="p-4">
+                      <div className="mb-2">
+                        <Badge
+                          variant={
+                            item.item_type === "report"
+                              ? "default"
+                              : "secondary"
+                          }
+                          className="text-xs"
+                        >
+                          {item.item_type === "report"
+                            ? "🚨 Report"
+                            : "💬 Community"}
+                        </Badge>
+                      </div>
+
+                      <h3 className="font-semibold line-clamp-2 mb-2 text-base">
+                        {item.title}
+                      </h3>
+
+                      {item.summary && (
+                        <p className="text-sm text-muted-foreground line-clamp-2 mb-3">
+                          {item.summary}
+                        </p>
+                      )}
+
+                      {/* Metadata */}
+                      <div className="flex flex-wrap gap-1 mb-3">
+                        {item.category && (
+                          <Badge variant="outline" className="text-xs">
+                            {item.category}
+                          </Badge>
+                        )}
+                        {item.location && (
+                          <Badge variant="outline" className="text-xs">
+                            📍 {item.location}
+                          </Badge>
+                        )}
+                      </div>
+
+                      <div className="text-xs text-muted-foreground mb-4">
+                        {formatDate(item.created_at)}
+                      </div>
+
+                      {/* Actions */}
+                      <div className="flex items-center gap-4 pt-3 border-t text-muted-foreground text-sm">
+                        <button className="flex items-center gap-1 hover:text-red-500 transition-colors">
+                          <Heart className="w-4 h-4" />
+                          <span>{item.reaction_count || 0}</span>
+                        </button>
+                        <button
+                          className="flex items-center gap-1 hover:text-blue-500 transition-colors"
+                          onClick={() => toggleComments(item)}
+                        >
+                          <MessageCircle className="w-4 h-4" />
+                          <span>
+                            {isCommentsOpen ? "Hide" : "Comments"} (
+                            {itemComments.length})
+                          </span>
+                        </button>
+                        <button className="flex items-center gap-1 hover:text-green-500 transition-colors">
+                          <Share2 className="w-4 h-4" />
+                          <span>Share</span>
+                        </button>
+                      </div>
+
+                      {/* Comment Preview */}
+                      {!isCommentsOpen && threads.length > 0 && (
+                        <div className="border-t pt-4 mt-4 space-y-3">
+                          <div className="bg-muted/30 rounded-lg p-3 text-sm">
+                            <div className="comment-meta mb-1">
+                              <span className="font-medium">
+                                {threads[0].root.author_name || "Anonymous"}
+                              </span>
+                              <span className="text-xs">
+                                {formatDate(threads[0].root.created_at)}
+                              </span>
+                            </div>
+                            <div className="text-muted-foreground line-clamp-2">
+                              {threads[0].root.body}
+                            </div>
+                            {threads.length > 1 && (
+                              <button
+                                type="button"
+                                className="text-xs text-primary hover:underline mt-2"
+                                onClick={() => toggleComments(item)}
+                              >
+                                View all {itemComments.length} comments →
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      )}
+
+                      {isCommentsOpen && (
+                        <div className="border-t pt-4 mt-4 space-y-4">
+                          {threads.length > 0 && (
+                            <div className="comment-list">
+                              {threads.map(({ root, replies }) => (
+                                <div key={root.id} className="comment-item">
+                                  <div className="comment-meta">
+                                    <span>
+                                      {root.author_name || "Anonymous"}
+                                    </span>
+                                    <span>{formatDate(root.created_at)}</span>
+                                    <button
+                                      className="icon-button"
+                                      type="button"
+                                      onClick={() =>
+                                        setReplyTarget((prev) => ({
+                                          ...prev,
+                                          [itemKey]: root.id,
+                                        }))
+                                      }
+                                    >
+                                      Reply
+                                    </button>
+                                  </div>
+                                  <div>{root.body}</div>
+                                  {replies.length > 0 && (
+                                    <div className="comment-replies">
+                                      {replies.map((reply) => (
+                                        <div
+                                          key={reply.id}
+                                          className="comment-reply"
+                                        >
+                                          <div className="comment-meta">
+                                            <span>
+                                              {reply.author_name || "Anonymous"}
+                                            </span>
+                                            <span>
+                                              {formatDate(reply.created_at)}
+                                            </span>
+                                          </div>
+                                          <div>{reply.body}</div>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          )}
+
+                          <form
+                            className="comment-form"
+                            onSubmit={(event) => {
+                              event.preventDefault();
+                              submitComment(item);
+                            }}
+                          >
+                            <textarea
+                              placeholder="Write a comment"
+                              value={commentDraft[itemKey] || ""}
+                              onChange={(event) =>
+                                setCommentDraft((prev) => ({
+                                  ...prev,
+                                  [itemKey]: event.target.value,
+                                }))
+                              }
+                            />
+                            <Button type="submit" size="sm">
+                              Post comment
+                            </Button>
+                          </form>
+
+                          {replyTarget[itemKey] && (
+                            <form
+                              className="comment-form"
+                              onSubmit={(event) => {
+                                event.preventDefault();
+                                submitComment(item, replyTarget[itemKey]);
+                              }}
+                            >
+                              <textarea
+                                placeholder="Write a reply"
+                                value={replyDraft[replyKey] || ""}
+                                onChange={(event) =>
+                                  setReplyDraft((prev) => ({
+                                    ...prev,
+                                    [replyKey]: event.target.value,
+                                  }))
+                                }
+                              />
+                              <div className="comment-actions">
+                                <Button type="submit" size="sm">
+                                  Reply
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  type="button"
+                                  onClick={() =>
+                                    setReplyTarget((prev) => ({
+                                      ...prev,
+                                      [itemKey]: null,
+                                    }))
+                                  }
+                                >
+                                  Cancel
+                                </Button>
+                              </div>
+                            </form>
+                          )}
+                        </div>
+                      )}
                     </div>
-                  )}
+                  </Card>
+                );
+              })}
+            </div>
+          )}
 
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-3">
-                    <Link
-                      href={
-                        item.item_type === "report" ? "/reports" : "/community"
-                      }
-                      className="text-white text-sm font-medium hover:underline"
-                    >
-                      View {item.item_type === "report" ? "Report" : "Post"}
-                    </Link>
-                  </div>
-                </div>
+          {/* Load More */}
+          {hasMore && (
+            <div className="flex justify-center mb-12">
+              <Button
+                onClick={() => fetchFeed(false)}
+                disabled={loadingMore}
+                size="lg"
+                variant="outline"
+              >
+                {loadingMore ? "Loading..." : "Load More"}
+              </Button>
+            </div>
+          )}
 
-                {/* Content Section */}
-                <div className="p-4">
-                  <div className="mb-2">
-                    <Badge
-                      variant={
-                        item.item_type === "report" ? "default" : "secondary"
-                      }
-                      className="text-xs"
-                    >
-                      {item.item_type === "report"
-                        ? "🚨 Report"
-                        : "💬 Community"}
-                    </Badge>
-                  </div>
+          {!hasMore && filteredItems.length > 0 && (
+            <div className="text-center py-8">
+              <p className="text-muted-foreground">You're all caught up! 🎉</p>
+            </div>
+          )}
+        </section>
 
-                  <h3 className="font-semibold line-clamp-2 mb-2 text-base">
-                    {item.title}
-                  </h3>
-
-                  {item.summary && (
-                    <p className="text-sm text-muted-foreground line-clamp-2 mb-3">
-                      {item.summary}
-                    </p>
-                  )}
-
-                  {/* Metadata */}
-                  <div className="flex flex-wrap gap-1 mb-3">
-                    {item.category && (
-                      <Badge variant="outline" className="text-xs">
-                        {item.category}
-                      </Badge>
-                    )}
-                    {item.location && (
-                      <Badge variant="outline" className="text-xs">
-                        📍 {item.location}
-                      </Badge>
-                    )}
-                  </div>
-
-                  <div className="text-xs text-muted-foreground mb-4">
-                    {formatDate(item.created_at)}
-                  </div>
-
-                  {/* Actions */}
-                  <div className="flex items-center gap-4 pt-3 border-t text-muted-foreground text-sm">
-                    <button className="flex items-center gap-1 hover:text-red-500 transition-colors">
-                      <Heart className="w-4 h-4" />
-                      <span>{item.reaction_count || 0}</span>
-                    </button>
-                    <button className="flex items-center gap-1 hover:text-blue-500 transition-colors">
-                      <MessageCircle className="w-4 h-4" />
-                      <span>Reply</span>
-                    </button>
-                    <button className="flex items-center gap-1 hover:text-green-500 transition-colors">
-                      <Share2 className="w-4 h-4" />
-                      <span>Share</span>
-                    </button>
-                  </div>
-                </div>
-              </Card>
-            ))}
-          </div>
-        )}
-
-        {/* Load More */}
-        {hasMore && (
-          <div className="flex justify-center mb-12">
-            <Button
-              onClick={() => fetchFeed(false)}
-              disabled={loadingMore}
-              size="lg"
-              variant="outline"
-            >
-              {loadingMore ? "Loading..." : "Load More"}
-            </Button>
-          </div>
-        )}
-
-        {!hasMore && filteredItems.length > 0 && (
-          <div className="text-center py-8">
-            <p className="text-muted-foreground">You're all caught up! 🎉</p>
-          </div>
-        )}
+        <SiteFooter />
       </div>
-
-      <PageSection
-        title="How to use the feed"
-        description="Get the most out of community sharing"
-        className="max-w-7xl mx-auto px-4 py-12 mb-12"
-      >
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <Card className="p-6">
-            <h3 className="font-semibold mb-2">📸 Share Clear Photos</h3>
-            <p className="text-sm text-muted-foreground">
-              Use high-quality images to help identify pets and verify issues
-              quickly.
-            </p>
-          </Card>
-          <Card className="p-6">
-            <h3 className="font-semibold mb-2">🏷️ Use Categories</h3>
-            <p className="text-sm text-muted-foreground">
-              Tag posts correctly so community members can find what they're
-              looking for.
-            </p>
-          </Card>
-          <Card className="p-6">
-            <h3 className="font-semibold mb-2">⚡ Mark Urgency</h3>
-            <p className="text-sm text-muted-foreground">
-              Clearly indicate priority levels in your report descriptions.
-            </p>
-          </Card>
-        </div>
-      </PageSection>
-
-      <SiteFooter />
     </main>
   );
 }

@@ -201,6 +201,9 @@ export default function ReportsSection() {
   async function toggleComments(reportId: string) {
     const open = !commentsOpen[reportId];
     setCommentsOpen((prev) => ({ ...prev, [reportId]: open }));
+    if (!open) {
+      setReplyTarget((prev) => ({ ...prev, [reportId]: null }));
+    }
     if (open && !commentsByReport[reportId]) {
       try {
         await fetchComments(reportId);
@@ -438,6 +441,18 @@ export default function ReportsSection() {
             const replyKey = replyTarget[report.id]
               ? `${report.id}:${replyTarget[report.id]}`
               : report.id;
+            const repliesByParent = reportComments.reduce<
+              Record<string, ReportComment[]>
+            >((acc, comment) => {
+              if (comment.parent_id) {
+                acc[comment.parent_id] = acc[comment.parent_id] || [];
+                acc[comment.parent_id].push(comment);
+              }
+              return acc;
+            }, {});
+            const rootComments = reportComments.filter(
+              (comment) => !comment.parent_id,
+            );
             return (
               <article key={report.id} className="social-card">
                 <div className="social-header">
@@ -505,31 +520,82 @@ export default function ReportsSection() {
                     Delete
                   </Button>
                 </div>
+                {/* Comment Preview */}
+                {!isCommentsOpen && rootComments.length > 0 && (
+                  <div className="border-t pt-4 mt-4 space-y-3">
+                    <div className="bg-muted/30 rounded-lg p-3 text-sm">
+                      <div className="comment-meta mb-1">
+                        <span className="font-medium">
+                          {rootComments[0].author_name || "Anonymous"}
+                        </span>
+                        <span className="text-xs">
+                          {new Date(
+                            rootComments[0].created_at,
+                          ).toLocaleString()}
+                        </span>
+                      </div>
+                      <div className="text-muted-foreground line-clamp-2">
+                        {rootComments[0].body}
+                      </div>
+                      {rootComments.length > 1 && (
+                        <button
+                          type="button"
+                          className="text-xs text-primary hover:underline mt-2"
+                          onClick={() => toggleComments(report.id)}
+                        >
+                          View all {reportComments.length} comments →
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                )}
                 {isCommentsOpen && (
                   <div className="comment-list">
-                    {reportComments.map((comment) => (
-                      <div key={comment.id} className="comment-item">
-                        <div>{comment.body}</div>
-                        <div className="comment-meta">
-                          <span>{comment.author_name || "Anonymous"}</span>
-                          <span>
-                            {new Date(comment.created_at).toLocaleString()}
-                          </span>
-                          <button
-                            className="icon-button"
-                            type="button"
-                            onClick={() =>
-                              setReplyTarget((prev) => ({
-                                ...prev,
-                                [report.id]: comment.id,
-                              }))
-                            }
-                          >
-                            Reply
-                          </button>
+                    {rootComments.map((comment) => {
+                      const replies = repliesByParent[comment.id] || [];
+                      return (
+                        <div key={comment.id} className="comment-item">
+                          <div className="comment-meta">
+                            <span>{comment.author_name || "Anonymous"}</span>
+                            <span>
+                              {new Date(comment.created_at).toLocaleString()}
+                            </span>
+                            <button
+                              className="icon-button"
+                              type="button"
+                              onClick={() =>
+                                setReplyTarget((prev) => ({
+                                  ...prev,
+                                  [report.id]: comment.id,
+                                }))
+                              }
+                            >
+                              Reply
+                            </button>
+                          </div>
+                          <div>{comment.body}</div>
+                          {replies.length > 0 && (
+                            <div className="comment-replies">
+                              {replies.map((reply) => (
+                                <div key={reply.id} className="comment-reply">
+                                  <div className="comment-meta">
+                                    <span>
+                                      {reply.author_name || "Anonymous"}
+                                    </span>
+                                    <span>
+                                      {new Date(
+                                        reply.created_at,
+                                      ).toLocaleString()}
+                                    </span>
+                                  </div>
+                                  <div>{reply.body}</div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                     <form
                       className="comment-form"
                       onSubmit={(e) => {

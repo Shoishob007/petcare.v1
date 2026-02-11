@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { Heart, MessageCircle, Share2, MoreHorizontal } from "lucide-react";
 import Button from "../components/Button";
 import Dialog from "../components/Dialog";
 import Dropdown from "../components/Dropdown";
@@ -47,6 +48,32 @@ const CATEGORY_OPTIONS = [
   { label: "Adoption", value: "Adoption" },
   { label: "Event", value: "Event" },
 ];
+
+const formatDate = (dateString: string) => {
+  const date = new Date(dateString);
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffMins = Math.floor(diffMs / 60000);
+  const diffHours = Math.floor(diffMins / 60);
+  const diffDays = Math.floor(diffHours / 24);
+
+  if (diffMins < 1) return "Just now";
+  if (diffMins < 60) return `${diffMins}m`;
+  if (diffHours < 24) return `${diffHours}h`;
+  if (diffDays < 7) return `${diffDays}d`;
+
+  return date.toLocaleDateString();
+};
+
+const getInitials = (name?: string | null) => {
+  if (!name) return "PC";
+  const parts = name.trim().split(" ");
+  const initials = parts
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase())
+    .join("");
+  return initials || "PC";
+};
 
 export default function CommunityPage() {
   const toast = useToast();
@@ -286,6 +313,9 @@ export default function CommunityPage() {
   async function toggleComments(postId: string) {
     const open = !commentsOpen[postId];
     setCommentsOpen((prev) => ({ ...prev, [postId]: open }));
+    if (!open) {
+      setReplyTarget((prev) => ({ ...prev, [postId]: null }));
+    }
     if (open && !commentsByPost[postId]) {
       try {
         await fetchComments(postId);
@@ -373,259 +403,365 @@ export default function CommunityPage() {
     });
   }, [posts, query, categoryFilter]);
 
+  const buildThreads = (comments: CommunityComment[]) => {
+    const repliesByParent: Record<string, CommunityComment[]> = {};
+    const roots: CommunityComment[] = [];
+    comments.forEach((comment) => {
+      if (comment.parent_id) {
+        repliesByParent[comment.parent_id] =
+          repliesByParent[comment.parent_id] || [];
+        repliesByParent[comment.parent_id].push(comment);
+      } else {
+        roots.push(comment);
+      }
+    });
+
+    const sortByDate = (a: CommunityComment, b: CommunityComment) =>
+      new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+
+    roots.sort(sortByDate);
+    Object.values(repliesByParent).forEach((list) => list.sort(sortByDate));
+
+    return roots.map((root) => ({
+      root,
+      replies: repliesByParent[root.id] || [],
+    }));
+  };
+
   return (
-    <main className="page">
-      <header className="hero">
-        <MainNav />
-        <div className="page-header">
-          <p className="eyebrow">Community support</p>
-          <h1>Share updates, coordinate volunteers, and keep hope high.</h1>
-          <p className="subtext">
-            This is the living community board for help requests, reunions, and
-            wellness tips.
-          </p>
-          <div className="hero-actions">
-            <Button type="button" onClick={() => setCreateOpen(true)}>
-              New community post
-            </Button>
-            <Button variant="ghost" type="button" onClick={fetchPosts}>
-              {loading ? "Refreshing..." : "Refresh"}
-            </Button>
-          </div>
-        </div>
-      </header>
+    <main className="min-h-screen bg-background page-shell">
+      <MainNav />
 
-      <section className="panel-spaced two-column">
-        <div className="panel">
+      <div className="page">
+        <header className="community-hero">
+          <div className="community-hero-content">
+            <div>
+              <p className="eyebrow">Community feed</p>
+              <h1>Share updates, coordinate volunteers, and keep hope high.</h1>
+              <p className="subtext">
+                This is the living community board for help requests, reunions,
+                and wellness tips.
+              </p>
+            </div>
+            <div className="community-hero-actions">
+              <Button type="button" onClick={() => setCreateOpen(true)}>
+                New community post
+              </Button>
+              <Button variant="ghost" type="button" onClick={fetchPosts}>
+                {loading ? "Refreshing..." : "Refresh"}
+              </Button>
+            </div>
+          </div>
+        </header>
+
+        <section className="panel-spaced two-column">
+          <div className="panel">
+            <div className="panel-header">
+              <h2>Community resources</h2>
+              <p>Quick references the neighborhood relies on.</p>
+            </div>
+            <div className="resource-list">
+              <div className="support-card">
+                <strong>Emergency care</strong>
+                <span>Contact your local 24/7 veterinary ER.</span>
+              </div>
+              <div className="support-card">
+                <strong>Lost pet checklist</strong>
+                <span>
+                  Share recent photos, update microchip info, alert shelters.
+                </span>
+              </div>
+              <div className="support-card">
+                <strong>Foster support</strong>
+                <span>We match volunteers with short-term care needs.</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="panel">
+            <div className="panel-header">
+              <h2>Guidelines</h2>
+              <p>Keep updates easy to act on.</p>
+            </div>
+            <ul className="feature-list">
+              <li>Include a clear title and call-to-action.</li>
+              <li>Add a photo so volunteers can recognize pets quickly.</li>
+              <li>Tag posts with categories to improve filtering.</li>
+            </ul>
+          </div>
+        </section>
+
+        <section className="panel panel-spaced">
           <div className="panel-header">
-            <h2>Community resources</h2>
-            <p>Quick references the neighborhood relies on.</p>
-          </div>
-          <div className="resource-list">
-            <div className="support-card">
-              <strong>Emergency care</strong>
-              <span>Contact your local 24/7 veterinary ER.</span>
+            <div>
+              <h2>Latest community posts</h2>
+              <p className="subtext">{filteredPosts.length} updates shown</p>
             </div>
-            <div className="support-card">
-              <strong>Lost pet checklist</strong>
-              <span>
-                Share recent photos, update microchip info, alert shelters.
-              </span>
-            </div>
-            <div className="support-card">
-              <strong>Foster support</strong>
-              <span>We match volunteers with short-term care needs.</span>
-            </div>
-          </div>
-        </div>
-
-        <div className="panel">
-          <div className="panel-header">
-            <h2>Guidelines</h2>
-            <p>Keep updates easy to act on.</p>
-          </div>
-          <ul className="feature-list">
-            <li>Include a clear title and call-to-action.</li>
-            <li>Add a photo so volunteers can recognize pets quickly.</li>
-            <li>Tag posts with categories to improve filtering.</li>
-          </ul>
-        </div>
-      </section>
-
-      <section className="panel panel-spaced">
-        <div className="panel-header">
-          <div>
-            <h2>Latest community posts</h2>
-            <p className="subtext">{filteredPosts.length} updates shown</p>
-          </div>
-          <div className="feed-filters">
-            <Dropdown
-              label="Category"
-              value={categoryFilter}
-              onChange={setCategoryFilter}
-              options={categoryOptions}
-            />
-            <label className="field">
-              Search
-              <input
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="Search posts"
+            <div className="feed-filters">
+              <Dropdown
+                label="Category"
+                value={categoryFilter}
+                onChange={setCategoryFilter}
+                options={categoryOptions}
               />
-            </label>
+              <label className="field">
+                Search
+                <input
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder="Search posts"
+                />
+              </label>
+            </div>
           </div>
-        </div>
-        {loading && posts.length === 0 && <p>Loading...</p>}
-        {error && <p className="error">{error}</p>}
-        <div className="feed-list">
-          {filteredPosts.map((post) => {
-            const postComments = commentsByPost[post.id] || [];
-            const isCommentsOpen = commentsOpen[post.id];
-            const replyKey = replyTarget[post.id]
-              ? `${post.id}:${replyTarget[post.id]}`
-              : post.id;
-            return (
-              <article key={post.id} className="social-card">
-                <div className="social-header">
-                  <div>
-                    <h3>{post.title}</h3>
-                    <div className="social-meta">
-                      {new Date(post.created_at).toLocaleString()}
-                    </div>
-                  </div>
-                  <span className="pill">{post.category || "Update"}</span>
-                </div>
-                <p>{post.body}</p>
-                {post.images?.length > 0 && (
-                  <MediaGrid
-                    items={post.images.map((image) => ({
-                      id: image.id,
-                      src: `${API_ROOT}${image.url}`,
-                      alt: "Community post",
-                    }))}
-                  />
-                )}
-                {!post.images?.length && post.image_url && (
-                  <MediaGrid
-                    items={[
+          {loading && posts.length === 0 && <p>Loading...</p>}
+          {error && <p className="error">{error}</p>}
+          <div className="feed-list">
+            {filteredPosts.map((post) => {
+              const postComments = commentsByPost[post.id] || [];
+              const isCommentsOpen = commentsOpen[post.id];
+              const replyKey = replyTarget[post.id]
+                ? `${post.id}:${replyTarget[post.id]}`
+                : post.id;
+              const threads = buildThreads(postComments);
+              const mediaItems = post.images?.length
+                ? post.images.map((image) => ({
+                    id: image.id,
+                    src: `${API_ROOT}${image.url}`,
+                    alt: post.title,
+                  }))
+                : post.image_url
+                  ? [
                       {
+                        id: `${post.id}-image`,
                         src: post.image_url.startsWith("/uploads/")
                           ? `${API_ROOT}${post.image_url}`
                           : post.image_url,
-                        alt: "Community post",
+                        alt: post.title,
                       },
-                    ]}
-                  />
-                )}
-                <div className="report-meta">
-                  {post.author_name && <span>{post.author_name}</span>}
-                </div>
-                <div className="social-actions">
-                  <Button
-                    variant="subtle"
-                    size="sm"
-                    type="button"
-                    onClick={() => reactToPost(post.id)}
-                  >
-                    React
-                  </Button>
-                  <span>{post.reaction_count || 0} reactions</span>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    type="button"
-                    onClick={() => toggleComments(post.id)}
-                  >
-                    {isCommentsOpen ? "Hide comments" : "Comments"}
-                  </Button>
-                  <Button
-                    variant="subtle"
-                    size="sm"
-                    type="button"
-                    onClick={() => openEdit(post)}
-                  >
-                    Edit
-                  </Button>
-                  <Button
-                    variant="danger"
-                    size="sm"
-                    type="button"
-                    onClick={() => openDelete(post)}
-                  >
-                    Delete
-                  </Button>
-                </div>
-                {isCommentsOpen && (
-                  <div className="comment-list">
-                    {postComments.map((comment) => (
-                      <div key={comment.id} className="comment-item">
-                        <div>{comment.body}</div>
-                        <div className="comment-meta">
-                          <span>{comment.author_name || "Anonymous"}</span>
-                          <span>
-                            {new Date(comment.created_at).toLocaleString()}
-                          </span>
-                          <button
-                            className="icon-button"
-                            type="button"
-                            onClick={() =>
-                              setReplyTarget((prev) => ({
-                                ...prev,
-                                [post.id]: comment.id,
-                              }))
-                            }
-                          >
-                            Reply
-                          </button>
+                    ]
+                  : [];
+
+              return (
+                <article key={post.id} className="social-card">
+                  <div className="social-header">
+                    <div className="social-author">
+                      <div className="social-avatar">
+                        {getInitials(post.author_name)}
+                      </div>
+                      <div className="social-author-meta">
+                        <div className="social-name">
+                          {post.author_name || "PetCare Community"}
+                        </div>
+                        <div className="social-meta">
+                          {formatDate(post.created_at)}
                         </div>
                       </div>
-                    ))}
-                    <form
-                      className="comment-form"
-                      onSubmit={(e) => {
-                        e.preventDefault();
-                        submitComment(post.id);
-                      }}
-                    >
-                      <textarea
-                        placeholder="Write a comment"
-                        value={commentDraft[post.id] || ""}
-                        onChange={(e) =>
-                          setCommentDraft((prev) => ({
-                            ...prev,
-                            [post.id]: e.target.value,
-                          }))
-                        }
-                      />
-                      <Button type="submit" size="sm">
-                        Post comment
+                    </div>
+                    <div className="social-header-actions">
+                      <span className="pill">{post.category || "Update"}</span>
+                      <button className="icon-button" type="button">
+                        <MoreHorizontal size={16} />
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="social-body">
+                    <h3 className="social-title">{post.title}</h3>
+                    <p className="social-text">{post.body}</p>
+                  </div>
+
+                  {mediaItems.length > 0 && <MediaGrid items={mediaItems} />}
+
+                  <div className="social-stats">
+                    <span>{post.reaction_count || 0} reactions</span>
+                    <span>{postComments.length} comments</span>
+                  </div>
+
+                  <div className="social-footer">
+                    <div className="social-actions">
+                      <button
+                        className="social-action"
+                        type="button"
+                        onClick={() => reactToPost(post.id)}
+                      >
+                        <Heart size={16} />
+                        React
+                      </button>
+                      <button
+                        className="social-action"
+                        type="button"
+                        onClick={() => toggleComments(post.id)}
+                      >
+                        <MessageCircle size={16} />
+                        {isCommentsOpen ? "Hide" : "Comment"}
+                      </button>
+                      <button className="social-action" type="button">
+                        <Share2 size={16} />
+                        Share
+                      </button>
+                    </div>
+                    <div className="social-admin">
+                      <Button
+                        variant="subtle"
+                        size="sm"
+                        type="button"
+                        onClick={() => openEdit(post)}
+                      >
+                        Edit
                       </Button>
-                    </form>
-                    {replyTarget[post.id] && (
+                      <Button
+                        variant="danger"
+                        size="sm"
+                        type="button"
+                        onClick={() => openDelete(post)}
+                      >
+                        Delete
+                      </Button>
+                    </div>
+                  </div>
+
+                  {/* Comment Preview */}
+                  {!isCommentsOpen && threads.length > 0 && (
+                    <div className="border-t pt-4 mt-4 space-y-3">
+                      <div className="bg-muted/30 rounded-lg p-3 text-sm">
+                        <div className="comment-meta mb-1">
+                          <span className="font-medium">
+                            {threads[0].root.author_name || "Anonymous"}
+                          </span>
+                          <span className="text-xs">
+                            {new Date(
+                              threads[0].root.created_at,
+                            ).toLocaleString()}
+                          </span>
+                        </div>
+                        <div className="text-muted-foreground line-clamp-2">
+                          {threads[0].root.body}
+                        </div>
+                        {threads.length > 1 && (
+                          <button
+                            type="button"
+                            className="text-xs text-primary hover:underline mt-2"
+                            onClick={() => toggleComments(post.id)}
+                          >
+                            View all {postComments.length} comments →
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {isCommentsOpen && (
+                    <div className="comment-list">
+                      {threads.map(({ root, replies }) => (
+                        <div key={root.id} className="comment-item">
+                          <div className="comment-meta">
+                            <span>{root.author_name || "Anonymous"}</span>
+                            <span>
+                              {new Date(root.created_at).toLocaleString()}
+                            </span>
+                            <button
+                              className="icon-button"
+                              type="button"
+                              onClick={() =>
+                                setReplyTarget((prev) => ({
+                                  ...prev,
+                                  [post.id]: root.id,
+                                }))
+                              }
+                            >
+                              Reply
+                            </button>
+                          </div>
+                          <div>{root.body}</div>
+                          {replies.length > 0 && (
+                            <div className="comment-replies">
+                              {replies.map((reply) => (
+                                <div key={reply.id} className="comment-reply">
+                                  <div className="comment-meta">
+                                    <span>
+                                      {reply.author_name || "Anonymous"}
+                                    </span>
+                                    <span>
+                                      {new Date(
+                                        reply.created_at,
+                                      ).toLocaleString()}
+                                    </span>
+                                  </div>
+                                  <div>{reply.body}</div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      ))}
                       <form
                         className="comment-form"
                         onSubmit={(e) => {
                           e.preventDefault();
-                          submitComment(post.id, replyTarget[post.id]);
+                          submitComment(post.id);
                         }}
                       >
                         <textarea
-                          placeholder="Write a reply"
-                          value={replyDraft[replyKey] || ""}
+                          placeholder="Write a comment"
+                          value={commentDraft[post.id] || ""}
                           onChange={(e) =>
-                            setReplyDraft((prev) => ({
+                            setCommentDraft((prev) => ({
                               ...prev,
-                              [replyKey]: e.target.value,
+                              [post.id]: e.target.value,
                             }))
                           }
                         />
-                        <div className="comment-actions">
-                          <Button type="submit" size="sm">
-                            Reply
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            type="button"
-                            onClick={() =>
-                              setReplyTarget((prev) => ({
+                        <Button type="submit" size="sm">
+                          Post comment
+                        </Button>
+                      </form>
+                      {replyTarget[post.id] && (
+                        <form
+                          className="comment-form"
+                          onSubmit={(e) => {
+                            e.preventDefault();
+                            submitComment(post.id, replyTarget[post.id]);
+                          }}
+                        >
+                          <textarea
+                            placeholder="Write a reply"
+                            value={replyDraft[replyKey] || ""}
+                            onChange={(e) =>
+                              setReplyDraft((prev) => ({
                                 ...prev,
-                                [post.id]: null,
+                                [replyKey]: e.target.value,
                               }))
                             }
-                          >
-                            Cancel
-                          </Button>
-                        </div>
-                      </form>
-                    )}
-                  </div>
-                )}
-              </article>
-            );
-          })}
-        </div>
-      </section>
+                          />
+                          <div className="comment-actions">
+                            <Button type="submit" size="sm">
+                              Reply
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              type="button"
+                              onClick={() =>
+                                setReplyTarget((prev) => ({
+                                  ...prev,
+                                  [post.id]: null,
+                                }))
+                              }
+                            >
+                              Cancel
+                            </Button>
+                          </div>
+                        </form>
+                      )}
+                    </div>
+                  )}
+                </article>
+              );
+            })}
+          </div>
+        </section>
+      </div>
 
       <Dialog
         open={createOpen}

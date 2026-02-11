@@ -1,41 +1,55 @@
 import Link from "next/link";
-import { ArrowRight, Heart, MessageSquare, Shield, Users, Zap } from "lucide-react";
+import {
+  ArrowRight,
+  Heart,
+  MessageSquare,
+  Shield,
+  Users,
+  Zap,
+} from "lucide-react";
 import MainNav from "./components/MainNav";
 import SiteFooter from "./components/SiteFooter";
 import { Button } from "./components/ui/button";
 import { Card } from "./components/ui/card";
+import { MEDIA } from "./lib/media";
 
 export default function Home() {
   const features = [
     {
       icon: Shield,
       title: "Lost & Found Reports",
-      description: "Create detailed reports with photos, location, and pet details to help bring pets home safely.",
+      description:
+        "Create detailed reports with photos, location, and pet details to help bring pets home safely.",
     },
     {
       icon: Heart,
       title: "Health & Wellness",
-      description: "Share health concerns, get professional vet advice, and track your pet's medical history.",
+      description:
+        "Share health concerns, get professional vet advice, and track your pet's medical history.",
     },
     {
       icon: Users,
       title: "Care Community",
-      description: "Connect with local pet professionals, groomers, trainers, and fellow pet enthusiasts.",
+      description:
+        "Connect with local pet professionals, groomers, trainers, and fellow pet enthusiasts.",
     },
     {
       icon: MessageSquare,
       title: "Real-time Updates",
-      description: "Comment, react, and get instant notifications when there's activity on your posts.",
+      description:
+        "Comment, react, and get instant notifications when there's activity on your posts.",
     },
     {
       icon: Zap,
       title: "Smart Alerts",
-      description: "Set location-based alerts to stay informed about pet incidents in your neighborhood.",
+      description:
+        "Set location-based alerts to stay informed about pet incidents in your neighborhood.",
     },
     {
       icon: Users,
       title: "Professional Network",
-      description: "Find verified veterinarians, groomers, trainers, and pet sitters in your area.",
+      description:
+        "Find verified veterinarians, groomers, trainers, and pet sitters in your area.",
     },
   ];
 
@@ -47,7 +61,7 @@ export default function Home() {
   ];
 
   return (
-    <main className="flex flex-col">
+    <main className="flex flex-col page-shell">
       <MainNav />
 
       {/* Hero Section */}
@@ -74,7 +88,9 @@ export default function Home() {
               </div>
 
               <p className="text-xl text-muted-foreground max-w-md leading-relaxed">
-                Report sightings instantly. Connect with veterinarians and pet professionals. Keep your pets safe and your community informed—all in one platform designed for pet lovers.
+                Report sightings instantly. Connect with veterinarians and pet
+                professionals. Keep your pets safe and your community
+                informed—all in one platform designed for pet lovers.
               </p>
 
               <div className="flex flex-col sm:flex-row gap-4">
@@ -85,7 +101,11 @@ export default function Home() {
                   </Button>
                 </Link>
                 <Link href="/feed">
-                  <Button size="lg" variant="outline" className="w-full sm:w-auto">
+                  <Button
+                    size="lg"
+                    variant="outline"
+                    className="w-full sm:w-auto"
+                  >
                     Explore Community Feed
                   </Button>
                 </Link>
@@ -95,19 +115,43 @@ export default function Home() {
               <div className="grid grid-cols-2 gap-6 pt-8 border-t border-border">
                 {stats.map((stat) => (
                   <div key={stat.label}>
-                    <div className="text-2xl font-bold text-primary">{stat.value}</div>
-                    <div className="text-sm text-muted-foreground">{stat.label}</div>
+                    <div className="text-2xl font-bold text-primary">
+                      {stat.value}
+                    </div>
+                    <div className="text-sm text-muted-foreground">
+                      {stat.label}
+                    </div>
                   </div>
                 ))}
               </div>
             </div>
 
             {/* Hero Image */}
-            <div className="relative h-96 md:h-full min-h-96 rounded-2xl overflow-hidden bg-gradient-to-br from-primary/10 to-secondary/10 border border-border/50">
-              <div className="absolute inset-0 flex items-center justify-center">
-                <div className="text-center">
-                  <div className="text-6xl mb-4">🐾</div>
-                  <p className="text-muted-foreground">Pet Community Hub</p>
+            <div className="hero-media">
+              <div className="hero-image">
+                <img
+                  src={MEDIA.hero}
+                  alt="Pet owner walking a dog in the neighborhood"
+                  loading="eager"
+                />
+                <div className="image-badge">Community-ready reports</div>
+              </div>
+              <div className="hero-cards">
+                <div className="image-card">
+                  <img
+                    src={MEDIA.cardOne}
+                    alt="Pet wellness check"
+                    loading="lazy"
+                  />
+                  <p>Share updates with photos and clear details.</p>
+                </div>
+                <div className="image-card">
+                  <img
+                    src={MEDIA.cardTwo}
+                    alt="Cozy pet recovery moment"
+                    loading="lazy"
+                  />
+                  <p>Keep care moments close and easy to find.</p>
                 </div>
               </div>
             </div>
@@ -121,7 +165,8 @@ export default function Home() {
           <div className="text-center space-y-4 mb-16">
             <h2 className="text-4xl font-bold">Everything You Need</h2>
             <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-              A complete platform for pet safety, health coordination, and community connection.
+              A complete platform for pet safety, health coordination, and
+              community connection.
             </p>
           </div>
 
@@ -129,11 +174,16 @@ export default function Home() {
             {features.map((feature, index) => {
               const Icon = feature.icon;
               return (
-                <Card key={index} className="p-8 hover:shadow-lg transition-shadow">
+                <Card
+                  key={index}
+                  className="p-8 hover:shadow-lg transition-shadow"
+                >
                   <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center mb-4">
                     <Icon className="w-6 h-6 text-primary" />
                   </div>
-                  <h3 className="text-xl font-semibold mb-2">{feature.title}</h3>
+                  <h3 className="text-xl font-semibold mb-2">
+                    {feature.title}
+                  </h3>
                   <p className="text-muted-foreground">{feature.description}</p>
                 </Card>
               );
@@ -146,17 +196,18 @@ export default function Home() {
       <section className="py-20 px-4 sm:px-6 lg:px-8">
         <div className="max-w-4xl mx-auto text-center space-y-8">
           <div className="space-y-4">
-            <h2 className="text-4xl font-bold">Ready to Join Your Pet Community?</h2>
+            <h2 className="text-4xl font-bold">
+              Ready to Join Your Pet Community?
+            </h2>
             <p className="text-xl text-muted-foreground">
-              Start sharing reports, connecting with professionals, and keeping your neighborhood pets safe.
+              Start sharing reports, connecting with professionals, and keeping
+              your neighborhood pets safe.
             </p>
           </div>
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link href="/reports">
-              <Button size="lg">
-                Create a Report
-              </Button>
+              <Button size="lg">Create a Report</Button>
             </Link>
             <Link href="/community">
               <Button size="lg" variant="outline">

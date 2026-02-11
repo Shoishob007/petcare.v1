@@ -192,7 +192,7 @@ export default function CareTeamsPage() {
       }
       const updated = (await res.json()) as CareTeamMember;
       setMembers((prev) =>
-        prev.map((member) => (member.id === updated.id ? updated : member))
+        prev.map((member) => (member.id === updated.id ? updated : member)),
       );
       setEditOpen(false);
     } catch (e) {
@@ -218,7 +218,9 @@ export default function CareTeamsPage() {
       if (!res.ok) {
         throw new Error(`Failed to delete member (${res.status})`);
       }
-      setMembers((prev) => prev.filter((member) => member.id !== activeMember.id));
+      setMembers((prev) =>
+        prev.filter((member) => member.id !== activeMember.id),
+      );
       setDeleteOpen(false);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Unknown error");
@@ -231,7 +233,7 @@ export default function CareTeamsPage() {
     const roles = Array.from(new Set(members.map((member) => member.role)));
     roles.sort();
     return [{ label: "All roles", value: "all" }].concat(
-      roles.map((roleValue) => ({ label: roleValue, value: roleValue }))
+      roles.map((roleValue) => ({ label: roleValue, value: roleValue })),
     );
   }, [members]);
 
@@ -242,135 +244,143 @@ export default function CareTeamsPage() {
         return false;
       }
       if (!normalized) return true;
-      const haystack = `${member.name} ${member.role} ${member.specialties ?? ""}`.toLowerCase();
+      const haystack =
+        `${member.name} ${member.role} ${member.specialties ?? ""}`.toLowerCase();
       return haystack.includes(normalized);
     });
   }, [members, query, roleFilter]);
 
   const avatarOptions = useMemo(
     () => [{ label: "Select an avatar", value: "" }, ...AVATAR_OPTIONS],
-    []
+    [],
   );
 
   return (
-    <main className="page">
-      <header className="hero">
-        <MainNav />
-        <div className="page-header">
-          <p className="eyebrow">Care team</p>
-          <h1>Meet the people keeping pets safe, supported, and seen.</h1>
-          <p className="subtext">
-            Build a trusted care circle with clear roles, availability, and
-            contact details.
-          </p>
-          <div className="hero-actions">
-            <Button type="button" onClick={() => setCreateOpen(true)}>
-              Add team member
-            </Button>
-            <Button variant="ghost" type="button" onClick={fetchMembers}>
-              {loading ? "Refreshing..." : "Refresh"}
-            </Button>
-          </div>
-        </div>
-      </header>
+    <main className="min-h-screen bg-background page-shell">
+      <MainNav />
 
-      <section className="panel-spaced two-column">
-        <div className="panel">
-          <div className="panel-header">
-            <h2>Coverage areas</h2>
-            <p>How the team supports local care.</p>
+      <div className="page">
+        <header className="hero">
+          <div className="page-header">
+            <p className="eyebrow">Care team</p>
+            <h1>Meet the people keeping pets safe, supported, and seen.</h1>
+            <p className="subtext">
+              Build a trusted care circle with clear roles, availability, and
+              contact details.
+            </p>
+            <div className="hero-actions">
+              <Button type="button" onClick={() => setCreateOpen(true)}>
+                Add team member
+              </Button>
+              <Button variant="ghost" type="button" onClick={fetchMembers}>
+                {loading ? "Refreshing..." : "Refresh"}
+              </Button>
+            </div>
           </div>
-          <ul className="feature-list">
-            <li>Emergency response for urgent reports.</li>
-            <li>Foster and volunteer coordination for recovery care.</li>
-            <li>Behavior guidance to keep pets calm during transitions.</li>
-          </ul>
-        </div>
-        <div className="panel">
-          <div className="panel-header">
-            <h2>Community standards</h2>
-            <p>Keep care consistent and respectful.</p>
-          </div>
-          <ul className="feature-list">
-            <li>Share availability to prevent missed handoffs.</li>
-            <li>Document specialties so families find the right help.</li>
-            <li>Use clear contact details to coordinate quickly.</li>
-          </ul>
-        </div>
-      </section>
+        </header>
 
-      <section className="panel panel-spaced">
-        <div className="panel-header">
-          <div>
-            <h2>Core team</h2>
-            <p className="subtext">{filteredMembers.length} members shown</p>
+        <section className="panel-spaced two-column">
+          <div className="panel">
+            <div className="panel-header">
+              <h2>Coverage areas</h2>
+              <p>How the team supports local care.</p>
+            </div>
+            <ul className="feature-list">
+              <li>Emergency response for urgent reports.</li>
+              <li>Foster and volunteer coordination for recovery care.</li>
+              <li>Behavior guidance to keep pets calm during transitions.</li>
+            </ul>
           </div>
-          <div className="feed-filters">
-            <Dropdown
-              label="Role"
-              value={roleFilter}
-              onChange={setRoleFilter}
-              options={roleOptions}
-            />
-            <label className="field">
-              Search
-              <input
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="Search by name or specialty"
+          <div className="panel">
+            <div className="panel-header">
+              <h2>Community standards</h2>
+              <p>Keep care consistent and respectful.</p>
+            </div>
+            <ul className="feature-list">
+              <li>Share availability to prevent missed handoffs.</li>
+              <li>Document specialties so families find the right help.</li>
+              <li>Use clear contact details to coordinate quickly.</li>
+            </ul>
+          </div>
+        </section>
+
+        <section className="panel panel-spaced">
+          <div className="panel-header">
+            <div>
+              <h2>Core team</h2>
+              <p className="subtext">{filteredMembers.length} members shown</p>
+            </div>
+            <div className="feed-filters">
+              <Dropdown
+                label="Role"
+                value={roleFilter}
+                onChange={setRoleFilter}
+                options={roleOptions}
               />
-            </label>
+              <label className="field">
+                Search
+                <input
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder="Search by name or specialty"
+                />
+              </label>
+            </div>
           </div>
-        </div>
-        {loading && members.length === 0 && <p>Loading...</p>}
-        {error && <p className="error">{error}</p>}
-        <div className="grid-list">
-          {filteredMembers.map((member) => (
-            <article key={member.id} className="profile-card">
-              <div className="profile-card-header">
-                {member.photo_url ? (
-                  <img className="avatar" src={member.photo_url} alt={member.name} />
-                ) : (
-                  <div className="avatar" />
-                )}
-                <div>
-                  <strong>{member.name}</strong>
-                  <div className="pill">{member.role}</div>
+          {loading && members.length === 0 && <p>Loading...</p>}
+          {error && <p className="error">{error}</p>}
+          <div className="grid-list">
+            {filteredMembers.map((member) => (
+              <article key={member.id} className="profile-card">
+                <div className="profile-card-header">
+                  {member.photo_url ? (
+                    <img
+                      className="avatar"
+                      src={member.photo_url}
+                      alt={member.name}
+                    />
+                  ) : (
+                    <div className="avatar" />
+                  )}
+                  <div>
+                    <strong>{member.name}</strong>
+                    <div className="pill">{member.role}</div>
+                  </div>
                 </div>
-              </div>
-              {member.bio && <p>{member.bio}</p>}
-              <div className="profile-meta">
-                {member.specialties && (
-                  <span>Specialties: {member.specialties}</span>
-                )}
-                {member.availability && (
-                  <span>Availability: {member.availability}</span>
-                )}
-                {member.location && <span>Location: {member.location}</span>}
-                {member.contact && <span>Contact: {member.contact}</span>}
-              </div>
-              <div className="card-actions">
-                <Button
-                  variant="subtle"
-                  size="sm"
-                  type="button"
-                  onClick={() => openEdit(member)}
-                >
-                  Edit
-                </Button>
-                <Button
-                  variant="danger"
-                  size="sm"
-                  type="button"
-                  onClick={() => openDelete(member)}
-                >
-                  Delete
-                </Button>
-              </div>
-            </article>
-          ))}
-        </div>
-      </section>
+                {member.bio && <p>{member.bio}</p>}
+                <div className="profile-meta">
+                  {member.specialties && (
+                    <span>Specialties: {member.specialties}</span>
+                  )}
+                  {member.availability && (
+                    <span>Availability: {member.availability}</span>
+                  )}
+                  {member.location && <span>Location: {member.location}</span>}
+                  {member.contact && <span>Contact: {member.contact}</span>}
+                </div>
+                <div className="card-actions">
+                  <Button
+                    variant="subtle"
+                    size="sm"
+                    type="button"
+                    onClick={() => openEdit(member)}
+                  >
+                    Edit
+                  </Button>
+                  <Button
+                    variant="danger"
+                    size="sm"
+                    type="button"
+                    onClick={() => openDelete(member)}
+                  >
+                    Delete
+                  </Button>
+                </div>
+              </article>
+            ))}
+          </div>
+        </section>
+      </div>
 
       <Dialog
         open={createOpen}
@@ -378,7 +388,11 @@ export default function CareTeamsPage() {
         onClose={() => setCreateOpen(false)}
         footer={
           <div className="form-actions">
-            <Button variant="ghost" type="button" onClick={() => setCreateOpen(false)}>
+            <Button
+              variant="ghost"
+              type="button"
+              onClick={() => setCreateOpen(false)}
+            >
               Cancel
             </Button>
             <Button type="submit" form="create-member-form" disabled={saving}>
@@ -387,7 +401,11 @@ export default function CareTeamsPage() {
           </div>
         }
       >
-        <form id="create-member-form" className="form-grid" onSubmit={handleCreate}>
+        <form
+          id="create-member-form"
+          className="form-grid"
+          onSubmit={handleCreate}
+        >
           <div className="field-row">
             <label>
               Name
@@ -408,7 +426,11 @@ export default function CareTeamsPage() {
           </div>
           <label>
             Bio
-            <textarea value={bio} onChange={(e) => setBio(e.target.value)} rows={3} />
+            <textarea
+              value={bio}
+              onChange={(e) => setBio(e.target.value)}
+              rows={3}
+            />
           </label>
           <label>
             Specialties
@@ -467,16 +489,28 @@ export default function CareTeamsPage() {
         onClose={() => setEditOpen(false)}
         footer={
           <div className="form-actions">
-            <Button variant="ghost" type="button" onClick={() => setEditOpen(false)}>
+            <Button
+              variant="ghost"
+              type="button"
+              onClick={() => setEditOpen(false)}
+            >
               Cancel
             </Button>
-            <Button type="submit" form="edit-member-form" disabled={actionLoading}>
+            <Button
+              type="submit"
+              form="edit-member-form"
+              disabled={actionLoading}
+            >
               {actionLoading ? "Saving..." : "Save changes"}
             </Button>
           </div>
         }
       >
-        <form id="edit-member-form" className="form-grid" onSubmit={handleEditSubmit}>
+        <form
+          id="edit-member-form"
+          className="form-grid"
+          onSubmit={handleEditSubmit}
+        >
           <div className="field-row">
             <label>
               Name
@@ -497,7 +531,11 @@ export default function CareTeamsPage() {
           </div>
           <label>
             Bio
-            <textarea value={editBio} onChange={(e) => setEditBio(e.target.value)} rows={3} />
+            <textarea
+              value={editBio}
+              onChange={(e) => setEditBio(e.target.value)}
+              rows={3}
+            />
           </label>
           <label>
             Specialties
@@ -542,7 +580,9 @@ export default function CareTeamsPage() {
               onChange={(e) => setEditPhotoUrl(e.target.value)}
             />
           </label>
-          {editPhotoUrl && <img className="avatar" src={editPhotoUrl} alt="Avatar" />}
+          {editPhotoUrl && (
+            <img className="avatar" src={editPhotoUrl} alt="Avatar" />
+          )}
         </form>
       </Dialog>
 
@@ -552,7 +592,11 @@ export default function CareTeamsPage() {
         onClose={() => setDeleteOpen(false)}
         footer={
           <div className="form-actions">
-            <Button variant="ghost" type="button" onClick={() => setDeleteOpen(false)}>
+            <Button
+              variant="ghost"
+              type="button"
+              onClick={() => setDeleteOpen(false)}
+            >
               Cancel
             </Button>
             <Button

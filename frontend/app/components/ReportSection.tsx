@@ -154,6 +154,10 @@ export default function ReportsSection() {
     Record<string, ReportComment[]>
   >({});
   const [commentDraft, setCommentDraft] = useState<Record<string, string>>({});
+  const [replyDraft, setReplyDraft] = useState<Record<string, string>>({});
+  const [replyTarget, setReplyTarget] = useState<Record<string, string | null>>(
+    {},
+  );
 
   const canSubmit = useMemo(() => title.trim().length > 0, [title]);
 
@@ -332,6 +336,9 @@ export default function ReportsSection() {
   async function toggleComments(reportId: string) {
     const isOpen = !commentsOpen[reportId];
     setCommentsOpen((prev) => ({ ...prev, [reportId]: isOpen }));
+    if (!isOpen) {
+      setReplyTarget((prev) => ({ ...prev, [reportId]: null }));
+    }
 
     if (isOpen && !commentsByReport[reportId]) {
       try {
@@ -343,15 +350,19 @@ export default function ReportsSection() {
   }
 
   // Submit comment
-  async function submitComment(reportId: string) {
-    const draft = commentDraft[reportId];
+  async function submitComment(reportId: string, parentId?: string | null) {
+    const draftKey = parentId ? `${reportId}:${parentId}` : reportId;
+    const draft = parentId ? replyDraft[draftKey] : commentDraft[reportId];
     if (!draft?.trim()) return;
 
     try {
       const res = await fetch(`${API_BASE}/reports/${reportId}/comments`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ body: draft.trim() }),
+        body: JSON.stringify({
+          body: draft.trim(),
+          parent_id: parentId || undefined,
+        }),
       });
 
       if (!res.ok) throw new Error("Failed to add comment");
@@ -361,7 +372,12 @@ export default function ReportsSection() {
         ...prev,
         [reportId]: [...(prev[reportId] || []), created],
       }));
-      setCommentDraft((prev) => ({ ...prev, [reportId]: "" }));
+      if (parentId) {
+        setReplyDraft((prev) => ({ ...prev, [draftKey]: "" }));
+        setReplyTarget((prev) => ({ ...prev, [reportId]: null }));
+      } else {
+        setCommentDraft((prev) => ({ ...prev, [reportId]: "" }));
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Error posting comment");
     }
@@ -440,11 +456,26 @@ export default function ReportsSection() {
           {reports.map((report) => {
             const reportComments = commentsByReport[report.id] || [];
             const isCommentsOpen = commentsOpen[report.id];
+            const replyKey = replyTarget[report.id]
+              ? `${report.id}:${replyTarget[report.id]}`
+              : report.id;
+            const repliesByParent = reportComments.reduce<
+              Record<string, ReportComment[]>
+            >((acc, comment) => {
+              if (comment.parent_id) {
+                acc[comment.parent_id] = acc[comment.parent_id] || [];
+                acc[comment.parent_id].push(comment);
+              }
+              return acc;
+            }, {});
+            const rootComments = reportComments.filter(
+              (comment) => !comment.parent_id,
+            );
 
             return (
               <Card
                 key={report.id}
-                className="overflow-hidden hover:shadow-lg transition-shadow"
+                className="overflow-hidden border border-border/60 shadow-sm hover:shadow-md transition-shadow"
               >
                 {/* Card Header */}
                 <CardHeader className="pb-3">
@@ -569,43 +600,97 @@ export default function ReportsSection() {
                     </Button>
                   </div>
 
+                  {/* Comment Preview */}
+                  {!isCommentsOpen && rootComments.length > 0 && (
+                    <div className="border-t pt-4 mt-4 space-y-3">
+                      <div className="bg-muted/30 rounded-lg p-3 text-sm">
+                        <div className="comment-meta mb-1">
+                          <span className="font-medium">
+                            {rootComments[0].author_name || "Anonymous"}
+                          </span>
+                          <span className="text-xs">
+                            {formatDate(rootComments[0].created_at)}
+                          </span>
+                        </div>
+                        <div className="text-muted-foreground line-clamp-2">
+                          {rootComments[0].body}
+                        </div>
+                        {rootComments.length > 1 && (
+                          <button
+                            type="button"
+                            className="text-xs text-primary hover:underline mt-2"
+                            onClick={() => toggleComments(report.id)}
+                          >
+                            View all {reportComments.length} comments →
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
                   {/* Comments Section */}
                   {isCommentsOpen && (
                     <div className="border-t pt-4 mt-4 space-y-4">
-                      {/* Comments List */}
-                      {reportComments.length > 0 && (
-                        <div className="space-y-3">
-                          {reportComments.map((comment) => (
-                            <div
-                              key={comment.id}
-                              className="flex gap-2 text-sm"
-                            >
-                              <div className="w-8 h-8 rounded-full bg-gray-300 flex-shrink-0" />
-                              <div className="flex-1 bg-gray-50 rounded-lg p-2">
-                                <p className="font-medium text-xs">
-                                  {comment.author_name || "Anonymous"}
-                                </p>
-                                <p className="text-gray-700">{comment.body}</p>
-                                <p className="text-xs text-gray-500 mt-1">
-                                  {formatDate(comment.created_at)}
-                                </p>
+                      {rootComments.length > 0 && (
+                        <div className="comment-list">
+                          {rootComments.map((comment) => {
+                            const replies = repliesByParent[comment.id] || [];
+                            return (
+                              <div key={comment.id} className="comment-item">
+                                <div className="comment-meta">
+                                  <span>
+                                    {comment.author_name || "Anonymous"}
+                                  </span>
+                                  <span>{formatDate(comment.created_at)}</span>
+                                  <button
+                                    className="icon-button"
+                                    type="button"
+                                    onClick={() =>
+                                      setReplyTarget((prev) => ({
+                                        ...prev,
+                                        [report.id]: comment.id,
+                                      }))
+                                    }
+                                  >
+                                    Reply
+                                  </button>
+                                </div>
+                                <div>{comment.body}</div>
+                                {replies.length > 0 && (
+                                  <div className="comment-replies">
+                                    {replies.map((reply) => (
+                                      <div
+                                        key={reply.id}
+                                        className="comment-reply"
+                                      >
+                                        <div className="comment-meta">
+                                          <span>
+                                            {reply.author_name || "Anonymous"}
+                                          </span>
+                                          <span>
+                                            {formatDate(reply.created_at)}
+                                          </span>
+                                        </div>
+                                        <div>{reply.body}</div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
                               </div>
-                            </div>
-                          ))}
+                            );
+                          })}
                         </div>
                       )}
 
-                      {/* Comment Form */}
                       <form
-                        className="flex gap-2"
+                        className="comment-form"
                         onSubmit={(e) => {
                           e.preventDefault();
                           submitComment(report.id);
                         }}
                       >
-                        <input
-                          type="text"
-                          placeholder="Write a comment..."
+                        <textarea
+                          placeholder="Write a comment"
                           value={commentDraft[report.id] || ""}
                           onChange={(e) =>
                             setCommentDraft((prev) => ({
@@ -613,12 +698,50 @@ export default function ReportsSection() {
                               [report.id]: e.target.value,
                             }))
                           }
-                          className="flex-1 px-3 py-2 rounded-lg border border-input text-sm focus:outline-none focus:ring-2 focus:ring-ring"
                         />
                         <Button type="submit" size="sm">
-                          Post
+                          Post comment
                         </Button>
                       </form>
+
+                      {replyTarget[report.id] && (
+                        <form
+                          className="comment-form"
+                          onSubmit={(e) => {
+                            e.preventDefault();
+                            submitComment(report.id, replyTarget[report.id]);
+                          }}
+                        >
+                          <textarea
+                            placeholder="Write a reply"
+                            value={replyDraft[replyKey] || ""}
+                            onChange={(e) =>
+                              setReplyDraft((prev) => ({
+                                ...prev,
+                                [replyKey]: e.target.value,
+                              }))
+                            }
+                          />
+                          <div className="comment-actions">
+                            <Button type="submit" size="sm">
+                              Reply
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              type="button"
+                              onClick={() =>
+                                setReplyTarget((prev) => ({
+                                  ...prev,
+                                  [report.id]: null,
+                                }))
+                              }
+                            >
+                              Cancel
+                            </Button>
+                          </div>
+                        </form>
+                      )}
                     </div>
                   )}
                 </CardContent>

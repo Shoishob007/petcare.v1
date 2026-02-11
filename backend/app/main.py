@@ -9,6 +9,7 @@ from app.api.v1.feed import router as feed_router
 from app.api.v1.reports import router as reports_router
 from app.api.v1.sicknesses import router as sicknesses_router
 from app.core.config import UPLOAD_DIR
+import app.models
 from app.db.seed import seed_data
 from app.db.session import Base, engine, ensure_sqlite_reports_schema, ensure_sqlite_community_posts_schema, ensure_sqlite_sicknesses_schema
 
