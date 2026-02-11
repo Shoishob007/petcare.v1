@@ -7,28 +7,25 @@ from sqlalchemy.orm import relationship
 from app.db.session import Base
 
 
-class Report(Base):
-    __tablename__ = "reports"
+class CommunityPost(Base):
+    __tablename__ = "community_posts"
 
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     title = Column(String, nullable=False)
-    description = Column(String, nullable=True)
-    location = Column(String, nullable=True)
+    body = Column(String, nullable=False)
     category = Column(String, nullable=True)
-    status = Column(String, nullable=True, default="open")
-    species = Column(String, nullable=True)
-    urgency = Column(String, nullable=True)
-    reporter_name = Column(String, nullable=True)
+    author_name = Column(String, nullable=True)
+    image_url = Column(String, nullable=True)
     reaction_count = Column(Integer, default=0)
     created_at = Column(DateTime, default=datetime.utcnow)
 
     images = relationship(
-        "ReportImage",
-        back_populates="report",
+        "CommunityPostImage",
+        back_populates="post",
         cascade="all, delete-orphan",
     )
     comments = relationship(
-        "ReportComment",
-        back_populates="report",
+        "CommunityPostComment",
+        back_populates="post",
         cascade="all, delete-orphan",
     )

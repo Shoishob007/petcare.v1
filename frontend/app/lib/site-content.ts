@@ -1,7 +1,9 @@
 import { MEDIA } from "./media";
 
 export const NAV_LINKS = [
+  { label: "Feed", href: "/feed" },
   { label: "Reports", href: "/reports" },
+  { label: "Sickness Guide", href: "/sickness" },
   { label: "Care Teams", href: "/care-teams" },
   { label: "Community", href: "/community" },
 ];
