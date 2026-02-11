@@ -7,6 +7,7 @@ import Dropdown from "../components/Dropdown";
 import MainNav from "../components/MainNav";
 import MediaGrid from "../components/MediaGrid";
 import SiteFooter from "../components/SiteFooter";
+import { useToast } from "../components/Toast";
 
 type Sickness = {
   id: string;
@@ -43,6 +44,7 @@ const formatLabel = (value?: string | null) => {
 };
 
 export default function SicknessPage() {
+  const toast = useToast();
   const [items, setItems] = useState<Sickness[]>([]);
   const [query, setQuery] = useState("");
   const [severityFilter, setSeverityFilter] = useState("all");
@@ -82,7 +84,9 @@ export default function SicknessPage() {
       const data = (await res.json()) as Sickness[];
       setItems(data);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Unknown error");
+      const errorMsg = e instanceof Error ? e.message : "Unknown error";
+      setError(errorMsg);
+      toast.error(errorMsg);
     } finally {
       setLoading(false);
     }
@@ -156,8 +160,11 @@ export default function SicknessPage() {
       setSeverity("moderate");
       setImageFiles([]);
       setCreateOpen(false);
+      toast.success("Sickness created successfully!");
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Unknown error");
+      const errorMsg = e instanceof Error ? e.message : "Unknown error";
+      setError(errorMsg);
+      toast.error(errorMsg);
     } finally {
       setSaving(false);
     }
@@ -202,11 +209,14 @@ export default function SicknessPage() {
         updated = { ...updated, images: uploaded };
       }
       setItems((prev) =>
-        prev.map((item) => (item.id === updated.id ? updated : item))
+        prev.map((item) => (item.id === updated.id ? updated : item)),
       );
       setEditOpen(false);
+      toast.success("Sickness updated successfully!");
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Unknown error");
+      const errorMsg = e instanceof Error ? e.message : "Unknown error";
+      setError(errorMsg);
+      toast.error(errorMsg);
     } finally {
       setActionLoading(false);
     }
@@ -230,8 +240,11 @@ export default function SicknessPage() {
       }
       setItems((prev) => prev.filter((item) => item.id !== activeItem.id));
       setDeleteOpen(false);
+      toast.success("Sickness deleted successfully!");
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Unknown error");
+      const errorMsg = e instanceof Error ? e.message : "Unknown error";
+      setError(errorMsg);
+      toast.error(errorMsg);
     } finally {
       setActionLoading(false);
     }
@@ -369,7 +382,11 @@ export default function SicknessPage() {
         onClose={() => setCreateOpen(false)}
         footer={
           <div className="form-actions">
-            <Button variant="ghost" type="button" onClick={() => setCreateOpen(false)}>
+            <Button
+              variant="ghost"
+              type="button"
+              onClick={() => setCreateOpen(false)}
+            >
               Cancel
             </Button>
             <Button type="submit" form="create-sickness-form" disabled={saving}>
@@ -378,10 +395,18 @@ export default function SicknessPage() {
           </div>
         }
       >
-        <form id="create-sickness-form" className="form-grid" onSubmit={handleCreate}>
+        <form
+          id="create-sickness-form"
+          className="form-grid"
+          onSubmit={handleCreate}
+        >
           <label>
             Name
-            <input value={name} onChange={(e) => setName(e.target.value)} required />
+            <input
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              required
+            />
           </label>
           <label>
             Species
@@ -393,15 +418,27 @@ export default function SicknessPage() {
           </label>
           <label>
             Summary
-            <textarea value={summary} onChange={(e) => setSummary(e.target.value)} rows={2} />
+            <textarea
+              value={summary}
+              onChange={(e) => setSummary(e.target.value)}
+              rows={2}
+            />
           </label>
           <label>
             Symptoms
-            <textarea value={symptoms} onChange={(e) => setSymptoms(e.target.value)} rows={3} />
+            <textarea
+              value={symptoms}
+              onChange={(e) => setSymptoms(e.target.value)}
+              rows={3}
+            />
           </label>
           <label>
             Remedies
-            <textarea value={remedies} onChange={(e) => setRemedies(e.target.value)} rows={3} />
+            <textarea
+              value={remedies}
+              onChange={(e) => setRemedies(e.target.value)}
+              rows={3}
+            />
           </label>
           <Dropdown
             label="Severity"
@@ -428,16 +465,28 @@ export default function SicknessPage() {
         onClose={() => setEditOpen(false)}
         footer={
           <div className="form-actions">
-            <Button variant="ghost" type="button" onClick={() => setEditOpen(false)}>
+            <Button
+              variant="ghost"
+              type="button"
+              onClick={() => setEditOpen(false)}
+            >
               Cancel
             </Button>
-            <Button type="submit" form="edit-sickness-form" disabled={actionLoading}>
+            <Button
+              type="submit"
+              form="edit-sickness-form"
+              disabled={actionLoading}
+            >
               {actionLoading ? "Saving..." : "Save changes"}
             </Button>
           </div>
         }
       >
-        <form id="edit-sickness-form" className="form-grid" onSubmit={handleEditSubmit}>
+        <form
+          id="edit-sickness-form"
+          className="form-grid"
+          onSubmit={handleEditSubmit}
+        >
           <label>
             Name
             <input
@@ -448,11 +497,18 @@ export default function SicknessPage() {
           </label>
           <label>
             Species
-            <input value={editSpecies} onChange={(e) => setEditSpecies(e.target.value)} />
+            <input
+              value={editSpecies}
+              onChange={(e) => setEditSpecies(e.target.value)}
+            />
           </label>
           <label>
             Summary
-            <textarea value={editSummary} onChange={(e) => setEditSummary(e.target.value)} rows={2} />
+            <textarea
+              value={editSummary}
+              onChange={(e) => setEditSummary(e.target.value)}
+              rows={2}
+            />
           </label>
           <label>
             Symptoms
@@ -496,7 +552,11 @@ export default function SicknessPage() {
         onClose={() => setDeleteOpen(false)}
         footer={
           <div className="form-actions">
-            <Button variant="ghost" type="button" onClick={() => setDeleteOpen(false)}>
+            <Button
+              variant="ghost"
+              type="button"
+              onClick={() => setDeleteOpen(false)}
+            >
               Cancel
             </Button>
             <Button

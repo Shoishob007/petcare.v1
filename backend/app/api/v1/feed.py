@@ -44,6 +44,7 @@ def get_feed(limit: int = 20, offset: int = 0, db: Session = Depends(get_db)):
         )
 
     for post in community_items:
+        image_url = post.images[0].url if post.images else None
         items.append(
             FeedItem(
                 item_type="community",
@@ -54,7 +55,7 @@ def get_feed(limit: int = 20, offset: int = 0, db: Session = Depends(get_db)):
                 location=None,
                 created_at=post.created_at,
                 images=post.images,
-                image_url=post.image_url,
+                image_url=image_url,
                 reaction_count=post.reaction_count or 0,
             )
         )

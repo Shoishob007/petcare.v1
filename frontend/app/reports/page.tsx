@@ -1,6 +1,6 @@
 import Link from "next/link";
 import MainNav from "../components/MainNav";
-import ReportsSection from "../components/ReportsSection";
+import ReportsSection from "../components/ReportSection";
 import SiteFooter from "../components/SiteFooter";
 import { MEDIA } from "../lib/media";
 
@@ -13,7 +13,9 @@ export default function ReportsPage() {
         <div className="hero-grid">
           <div className="hero-copy">
             <p className="eyebrow">Reports center</p>
-            <h1>Track pet problems, sightings, and care updates in one feed.</h1>
+            <h1>
+              Track pet problems, sightings, and care updates in one feed.
+            </h1>
             <p className="subtext">
               Upload images, log symptoms, and keep every report visible for
               neighbors and care teams to respond quickly.

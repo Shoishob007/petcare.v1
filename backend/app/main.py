@@ -10,9 +10,12 @@ from app.api.v1.reports import router as reports_router
 from app.api.v1.sicknesses import router as sicknesses_router
 from app.core.config import UPLOAD_DIR
 from app.db.seed import seed_data
-from app.db.session import Base, engine
+from app.db.session import Base, engine, ensure_sqlite_reports_schema, ensure_sqlite_community_posts_schema, ensure_sqlite_sicknesses_schema
 
 Base.metadata.create_all(bind=engine)
+ensure_sqlite_reports_schema()
+ensure_sqlite_community_posts_schema()
+ensure_sqlite_sicknesses_schema()
 
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 

@@ -5,6 +5,7 @@ import Button from "./Button";
 import Dialog from "./Dialog";
 import Dropdown from "./Dropdown";
 import MediaGrid from "./MediaGrid";
+import { useToast } from "./Toast";
 
 type ReportImage = {
   id: string;
@@ -78,6 +79,7 @@ const formatLabel = (value?: string | null) => {
 };
 
 export default function ReportsSection() {
+  const toast = useToast();
   const [reports, setReports] = useState<ReportResponse[]>([]);
   const [loadingReports, setLoadingReports] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -115,7 +117,7 @@ export default function ReportsSection() {
   const [commentDraft, setCommentDraft] = useState<Record<string, string>>({});
   const [replyDraft, setReplyDraft] = useState<Record<string, string>>({});
   const [replyTarget, setReplyTarget] = useState<Record<string, string | null>>(
-    {}
+    {},
   );
 
   const canSubmit = useMemo(() => title.trim().length > 0, [title]);
@@ -131,7 +133,9 @@ export default function ReportsSection() {
       const data = (await res.json()) as ReportResponse[];
       setReports(data);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Unknown error");
+      const errorMsg = e instanceof Error ? e.message : "Unknown error";
+      setError(errorMsg);
+      toast.error(errorMsg);
     } finally {
       setLoadingReports(false);
     }
@@ -173,11 +177,13 @@ export default function ReportsSection() {
         prev.map((report) =>
           report.id === updated.id
             ? { ...report, reaction_count: updated.reaction_count }
-            : report
-        )
+            : report,
+        ),
       );
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Unknown error");
+      const errorMsg = e instanceof Error ? e.message : "Unknown error";
+      setError(errorMsg);
+      toast.error(errorMsg);
     }
   }
 
@@ -199,7 +205,9 @@ export default function ReportsSection() {
       try {
         await fetchComments(reportId);
       } catch (e) {
-        setError(e instanceof Error ? e.message : "Unknown error");
+        const errorMsg = e instanceof Error ? e.message : "Unknown error";
+        setError(errorMsg);
+        toast.error(errorMsg);
       }
     }
   }
@@ -231,8 +239,11 @@ export default function ReportsSection() {
       } else {
         setCommentDraft((prev) => ({ ...prev, [reportId]: "" }));
       }
+      toast.success("Comment added successfully!");
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Unknown error");
+      const errorMsg = e instanceof Error ? e.message : "Unknown error";
+      setError(errorMsg);
+      toast.error(errorMsg);
     }
   }
 
@@ -279,8 +290,11 @@ export default function ReportsSection() {
       setReporterName("");
       setFiles([]);
       setCreateOpen(false);
+      toast.success("Report created successfully!");
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Unknown error");
+      const errorMsg = e instanceof Error ? e.message : "Unknown error";
+      setError(errorMsg);
+      toast.error(errorMsg);
     } finally {
       setSubmitting(false);
     }
@@ -330,12 +344,15 @@ export default function ReportsSection() {
       }
       setReports((prev) =>
         prev.map((report) =>
-          report.id === updated.id ? { ...updated, images } : report
-        )
+          report.id === updated.id ? { ...updated, images } : report,
+        ),
       );
       setEditOpen(false);
+      toast.success("Report updated successfully!");
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Unknown error");
+      const errorMsg = e instanceof Error ? e.message : "Unknown error";
+      setError(errorMsg);
+      toast.error(errorMsg);
     } finally {
       setActionLoading(false);
     }
@@ -357,10 +374,15 @@ export default function ReportsSection() {
       if (!res.ok) {
         throw new Error(`Failed to delete report (${res.status})`);
       }
-      setReports((prev) => prev.filter((report) => report.id !== activeReport.id));
+      setReports((prev) =>
+        prev.filter((report) => report.id !== activeReport.id),
+      );
       setDeleteOpen(false);
+      toast.success("Report deleted successfully!");
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Unknown error");
+      const errorMsg = e instanceof Error ? e.message : "Unknown error";
+      setError(errorMsg);
+      toast.error(errorMsg);
     } finally {
       setActionLoading(false);
     }
@@ -368,7 +390,7 @@ export default function ReportsSection() {
 
   const selectedFileNames = useMemo(
     () => files.map((file) => file.name),
-    [files]
+    [files],
   );
 
   return (
@@ -443,7 +465,9 @@ export default function ReportsSection() {
                   <span>{report.category || "General"}</span>
                   <span>{report.location || "Location unknown"}</span>
                   <span>{report.species || "Species unknown"}</span>
-                  <span>{formatLabel(report.urgency) || "Urgency not set"}</span>
+                  <span>
+                    {formatLabel(report.urgency) || "Urgency not set"}
+                  </span>
                   {report.reporter_name && <span>{report.reporter_name}</span>}
                 </div>
                 <div className="social-actions">
@@ -488,7 +512,9 @@ export default function ReportsSection() {
                         <div>{comment.body}</div>
                         <div className="comment-meta">
                           <span>{comment.author_name || "Anonymous"}</span>
-                          <span>{new Date(comment.created_at).toLocaleString()}</span>
+                          <span>
+                            {new Date(comment.created_at).toLocaleString()}
+                          </span>
                           <button
                             className="icon-button"
                             type="button"
@@ -577,16 +603,28 @@ export default function ReportsSection() {
         onClose={() => setCreateOpen(false)}
         footer={
           <div className="form-actions">
-            <Button variant="ghost" type="button" onClick={() => setCreateOpen(false)}>
+            <Button
+              variant="ghost"
+              type="button"
+              onClick={() => setCreateOpen(false)}
+            >
               Cancel
             </Button>
-            <Button type="submit" form="create-report-form" disabled={!canSubmit || submitting}>
+            <Button
+              type="submit"
+              form="create-report-form"
+              disabled={!canSubmit || submitting}
+            >
               {submitting ? "Saving..." : "Create report"}
             </Button>
           </div>
         }
       >
-        <form id="create-report-form" className="form-grid" onSubmit={handleCreate}>
+        <form
+          id="create-report-form"
+          className="form-grid"
+          onSubmit={handleCreate}
+        >
           <label>
             Title
             <input
@@ -679,16 +717,28 @@ export default function ReportsSection() {
         onClose={() => setEditOpen(false)}
         footer={
           <div className="form-actions">
-            <Button variant="ghost" type="button" onClick={() => setEditOpen(false)}>
+            <Button
+              variant="ghost"
+              type="button"
+              onClick={() => setEditOpen(false)}
+            >
               Cancel
             </Button>
-            <Button type="submit" form="edit-report-form" disabled={actionLoading}>
+            <Button
+              type="submit"
+              form="edit-report-form"
+              disabled={actionLoading}
+            >
               {actionLoading ? "Saving..." : "Save changes"}
             </Button>
           </div>
         }
       >
-        <form id="edit-report-form" className="form-grid" onSubmit={handleEditSubmit}>
+        <form
+          id="edit-report-form"
+          className="form-grid"
+          onSubmit={handleEditSubmit}
+        >
           <label>
             Title
             <input
@@ -768,7 +818,11 @@ export default function ReportsSection() {
         onClose={() => setDeleteOpen(false)}
         footer={
           <div className="form-actions">
-            <Button variant="ghost" type="button" onClick={() => setDeleteOpen(false)}>
+            <Button
+              variant="ghost"
+              type="button"
+              onClick={() => setDeleteOpen(false)}
+            >
               Cancel
             </Button>
             <Button
@@ -782,7 +836,9 @@ export default function ReportsSection() {
           </div>
         }
       >
-        <p>Are you sure you want to remove this report? This cannot be undone.</p>
+        <p>
+          Are you sure you want to remove this report? This cannot be undone.
+        </p>
       </Dialog>
     </section>
   );

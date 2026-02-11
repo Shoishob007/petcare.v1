@@ -7,6 +7,7 @@ import Dropdown from "../components/Dropdown";
 import MainNav from "../components/MainNav";
 import MediaGrid from "../components/MediaGrid";
 import SiteFooter from "../components/SiteFooter";
+import { useToast } from "../components/Toast";
 
 type CommunityPost = {
   id: string;
@@ -48,6 +49,7 @@ const CATEGORY_OPTIONS = [
 ];
 
 export default function CommunityPage() {
+  const toast = useToast();
   const [posts, setPosts] = useState<CommunityPost[]>([]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -81,21 +83,25 @@ export default function CommunityPage() {
   const [commentDraft, setCommentDraft] = useState<Record<string, string>>({});
   const [replyDraft, setReplyDraft] = useState<Record<string, string>>({});
   const [replyTarget, setReplyTarget] = useState<Record<string, string | null>>(
-    {}
+    {},
   );
 
   async function fetchPosts() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`${API_BASE}/community-posts`, { cache: "no-store" });
+      const res = await fetch(`${API_BASE}/community-posts`, {
+        cache: "no-store",
+      });
       if (!res.ok) {
         throw new Error(`Failed to load posts (${res.status})`);
       }
       const data = (await res.json()) as CommunityPost[];
       setPosts(data);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Unknown error");
+      const errorMsg = e instanceof Error ? e.message : "Unknown error";
+      setError(errorMsg);
+      toast.error(errorMsg);
     } finally {
       setLoading(false);
     }
@@ -154,8 +160,11 @@ export default function CommunityPage() {
       setImageUrl("");
       setImageFiles([]);
       setCreateOpen(false);
+      toast.success("Post created successfully!");
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Unknown error");
+      const errorMsg = e instanceof Error ? e.message : "Unknown error";
+      setError(errorMsg);
+      toast.error(errorMsg);
     } finally {
       setSaving(false);
     }
@@ -198,11 +207,14 @@ export default function CommunityPage() {
         updated = { ...updated, images: uploaded };
       }
       setPosts((prev) =>
-        prev.map((post) => (post.id === updated.id ? updated : post))
+        prev.map((post) => (post.id === updated.id ? updated : post)),
       );
       setEditOpen(false);
+      toast.success("Post updated successfully!");
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Unknown error");
+      const errorMsg = e instanceof Error ? e.message : "Unknown error";
+      setError(errorMsg);
+      toast.error(errorMsg);
     } finally {
       setActionLoading(false);
     }
@@ -226,8 +238,11 @@ export default function CommunityPage() {
       }
       setPosts((prev) => prev.filter((post) => post.id !== activePost.id));
       setDeleteOpen(false);
+      toast.success("Post deleted successfully!");
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Unknown error");
+      const errorMsg = e instanceof Error ? e.message : "Unknown error";
+      setError(errorMsg);
+      toast.error(errorMsg);
     } finally {
       setActionLoading(false);
     }
@@ -235,9 +250,12 @@ export default function CommunityPage() {
 
   async function reactToPost(postId: string) {
     try {
-      const res = await fetch(`${API_BASE}/community-posts/${postId}/reactions`, {
-        method: "POST",
-      });
+      const res = await fetch(
+        `${API_BASE}/community-posts/${postId}/reactions`,
+        {
+          method: "POST",
+        },
+      );
       if (!res.ok) {
         throw new Error(`Failed to react (${res.status})`);
       }
@@ -246,8 +264,8 @@ export default function CommunityPage() {
         prev.map((post) =>
           post.id === updated.id
             ? { ...post, reaction_count: updated.reaction_count }
-            : post
-        )
+            : post,
+        ),
       );
     } catch (e) {
       setError(e instanceof Error ? e.message : "Unknown error");
@@ -282,14 +300,17 @@ export default function CommunityPage() {
     const draft = parentId ? replyDraft[draftKey] : commentDraft[postId];
     if (!draft?.trim()) return;
     try {
-      const res = await fetch(`${API_BASE}/community-posts/${postId}/comments`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          body: draft.trim(),
-          parent_id: parentId || undefined,
-        }),
-      });
+      const res = await fetch(
+        `${API_BASE}/community-posts/${postId}/comments`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            body: draft.trim(),
+            parent_id: parentId || undefined,
+          }),
+        },
+      );
       if (!res.ok) {
         throw new Error(`Failed to add comment (${res.status})`);
       }
@@ -322,7 +343,9 @@ export default function CommunityPage() {
 
   useEffect(() => {
     const urls = editImageFiles.map((file) => URL.createObjectURL(file));
-    setEditPreviewUrls(urls.length > 0 ? urls : editImageUrl ? [editImageUrl] : []);
+    setEditPreviewUrls(
+      urls.length > 0 ? urls : editImageUrl ? [editImageUrl] : [],
+    );
     return () => {
       urls.forEach((url) => URL.revokeObjectURL(url));
     };
@@ -330,11 +353,11 @@ export default function CommunityPage() {
 
   const categoryOptions = useMemo(() => {
     const categories = Array.from(
-      new Set(posts.map((post) => post.category).filter(Boolean) as string[])
+      new Set(posts.map((post) => post.category).filter(Boolean) as string[]),
     );
     categories.sort();
     return [{ label: "All categories", value: "all" }].concat(
-      categories.map((cat) => ({ label: cat, value: cat }))
+      categories.map((cat) => ({ label: cat, value: cat })),
     );
   }, [posts]);
 
@@ -385,7 +408,9 @@ export default function CommunityPage() {
             </div>
             <div className="support-card">
               <strong>Lost pet checklist</strong>
-              <span>Share recent photos, update microchip info, alert shelters.</span>
+              <span>
+                Share recent photos, update microchip info, alert shelters.
+              </span>
             </div>
             <div className="support-card">
               <strong>Foster support</strong>
@@ -517,7 +542,9 @@ export default function CommunityPage() {
                         <div>{comment.body}</div>
                         <div className="comment-meta">
                           <span>{comment.author_name || "Anonymous"}</span>
-                          <span>{new Date(comment.created_at).toLocaleString()}</span>
+                          <span>
+                            {new Date(comment.created_at).toLocaleString()}
+                          </span>
                           <button
                             className="icon-button"
                             type="button"
@@ -606,7 +633,11 @@ export default function CommunityPage() {
         onClose={() => setCreateOpen(false)}
         footer={
           <div className="form-actions">
-            <Button variant="ghost" type="button" onClick={() => setCreateOpen(false)}>
+            <Button
+              variant="ghost"
+              type="button"
+              onClick={() => setCreateOpen(false)}
+            >
               Cancel
             </Button>
             <Button type="submit" form="create-post-form" disabled={saving}>
@@ -615,7 +646,11 @@ export default function CommunityPage() {
           </div>
         }
       >
-        <form id="create-post-form" className="form-grid" onSubmit={handleSubmit}>
+        <form
+          id="create-post-form"
+          className="form-grid"
+          onSubmit={handleSubmit}
+        >
           <label>
             Title
             <input
@@ -659,26 +694,24 @@ export default function CommunityPage() {
               placeholder="https://"
             />
           </label>
-            <label>
-              Or upload images
-              <input
-                type="file"
-                accept="image/*"
-                multiple
-                onChange={(e) =>
-                  setImageFiles(Array.from(e.target.files || []))
-                }
-              />
-            </label>
-            {previewUrls.length > 0 && (
-              <MediaGrid
-                items={previewUrls.map((src, index) => ({
-                  id: `${src}-${index}`,
-                  src: src.startsWith("/uploads/") ? `${API_ROOT}${src}` : src,
-                  alt: "Preview",
-                }))}
-              />
-            )}
+          <label>
+            Or upload images
+            <input
+              type="file"
+              accept="image/*"
+              multiple
+              onChange={(e) => setImageFiles(Array.from(e.target.files || []))}
+            />
+          </label>
+          {previewUrls.length > 0 && (
+            <MediaGrid
+              items={previewUrls.map((src, index) => ({
+                id: `${src}-${index}`,
+                src: src.startsWith("/uploads/") ? `${API_ROOT}${src}` : src,
+                alt: "Preview",
+              }))}
+            />
+          )}
           {error && <p className="error">{error}</p>}
         </form>
       </Dialog>
@@ -689,16 +722,28 @@ export default function CommunityPage() {
         onClose={() => setEditOpen(false)}
         footer={
           <div className="form-actions">
-            <Button variant="ghost" type="button" onClick={() => setEditOpen(false)}>
+            <Button
+              variant="ghost"
+              type="button"
+              onClick={() => setEditOpen(false)}
+            >
               Cancel
             </Button>
-            <Button type="submit" form="edit-post-form" disabled={actionLoading}>
+            <Button
+              type="submit"
+              form="edit-post-form"
+              disabled={actionLoading}
+            >
               {actionLoading ? "Saving..." : "Save changes"}
             </Button>
           </div>
         }
       >
-        <form id="edit-post-form" className="form-grid" onSubmit={handleEditSubmit}>
+        <form
+          id="edit-post-form"
+          className="form-grid"
+          onSubmit={handleEditSubmit}
+        >
           <label>
             Title
             <input
@@ -767,7 +812,11 @@ export default function CommunityPage() {
         onClose={() => setDeleteOpen(false)}
         footer={
           <div className="form-actions">
-            <Button variant="ghost" type="button" onClick={() => setDeleteOpen(false)}>
+            <Button
+              variant="ghost"
+              type="button"
+              onClick={() => setDeleteOpen(false)}
+            >
               Cancel
             </Button>
             <Button
