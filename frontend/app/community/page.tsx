@@ -112,6 +112,7 @@ export default function CommunityPage() {
   const [replyTarget, setReplyTarget] = useState<Record<string, string | null>>(
     {},
   );
+  const [likedPosts, setLikedPosts] = useState<Set<string>>(new Set());
 
   async function fetchPosts() {
     setLoading(true);
@@ -125,6 +126,10 @@ export default function CommunityPage() {
       }
       const data = (await res.json()) as CommunityPost[];
       setPosts(data);
+      // Prefetch comments for first few posts
+      data.slice(0, 5).forEach((post) => {
+        fetchComments(post.id).catch(() => {});
+      });
     } catch (e) {
       const errorMsg = e instanceof Error ? e.message : "Unknown error";
       setError(errorMsg);
@@ -276,6 +281,8 @@ export default function CommunityPage() {
   }
 
   async function reactToPost(postId: string) {
+    const isLiked = likedPosts.has(postId);
+
     try {
       const res = await fetch(
         `${API_BASE}/community-posts/${postId}/reactions`,
@@ -284,9 +291,23 @@ export default function CommunityPage() {
         },
       );
       if (!res.ok) {
-        throw new Error(`Failed to react (${res.status})`);
+        throw new Error(
+          `Failed to ${isLiked ? "unlike" : "like"} (${res.status})`,
+        );
       }
       const updated = (await res.json()) as CommunityPost;
+
+      // Toggle liked state
+      setLikedPosts((prev) => {
+        const newSet = new Set(prev);
+        if (isLiked) {
+          newSet.delete(postId);
+        } else {
+          newSet.add(postId);
+        }
+        return newSet;
+      });
+
       setPosts((prev) =>
         prev.map((post) =>
           post.id === updated.id
@@ -499,19 +520,17 @@ export default function CommunityPage() {
             </div>
             <div className="feed-filters">
               <Dropdown
-                label="Category"
+                label=""
                 value={categoryFilter}
                 onChange={setCategoryFilter}
                 options={categoryOptions}
               />
-              <label className="field">
-                Search
-                <input
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  placeholder="Search posts"
-                />
-              </label>
+              <input
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Search posts"
+                className="px-3 py-2 rounded-lg border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring min-w-[200px]"
+              />
             </div>
           </div>
           {loading && posts.length === 0 && <p>Loading...</p>}
@@ -585,7 +604,14 @@ export default function CommunityPage() {
                         type="button"
                         onClick={() => reactToPost(post.id)}
                       >
-                        <Heart size={16} />
+                        {likedPosts.has(post.id) ? (
+                          <Heart
+                            size={16}
+                            className="fill-red-500 text-red-500"
+                          />
+                        ) : (
+                          <Heart size={16} />
+                        )}
                         React
                       </button>
                       <button
@@ -623,31 +649,36 @@ export default function CommunityPage() {
 
                   {/* Comment Preview */}
                   {!isCommentsOpen && threads.length > 0 && (
-                    <div className="border-t pt-4 mt-4 space-y-3">
-                      <div className="bg-muted/30 rounded-lg p-3 text-sm">
-                        <div className="comment-meta mb-1">
-                          <span className="font-medium">
-                            {threads[0].root.author_name || "Anonymous"}
-                          </span>
-                          <span className="text-xs">
-                            {new Date(
-                              threads[0].root.created_at,
-                            ).toLocaleString()}
-                          </span>
-                        </div>
-                        <div className="text-muted-foreground line-clamp-2">
-                          {threads[0].root.body}
-                        </div>
-                        {threads.length > 1 && (
-                          <button
-                            type="button"
-                            className="text-xs text-primary hover:underline mt-2"
-                            onClick={() => toggleComments(post.id)}
+                    <div className="border-t pt-3 mt-3">
+                      <div className="max-h-[200px] overflow-y-auto space-y-2">
+                        {threads.slice(0, 2).map(({ root }) => (
+                          <div
+                            key={root.id}
+                            className="bg-muted/30 rounded-lg p-3 text-sm"
                           >
-                            View all {postComments.length} comments →
-                          </button>
-                        )}
+                            <div className="flex items-center justify-between mb-1">
+                              <span className="font-medium text-xs">
+                                {root.author_name || "Anonymous"}
+                              </span>
+                              <span className="text-xs text-muted-foreground">
+                                {formatDate(root.created_at)}
+                              </span>
+                            </div>
+                            <div className="text-muted-foreground text-sm line-clamp-2">
+                              {root.body}
+                            </div>
+                          </div>
+                        ))}
                       </div>
+                      {threads.length > 2 && (
+                        <button
+                          type="button"
+                          className="text-xs text-primary hover:underline mt-2 font-medium"
+                          onClick={() => toggleComments(post.id)}
+                        >
+                          View all {postComments.length} comments →
+                        </button>
+                      )}
                     </div>
                   )}
 

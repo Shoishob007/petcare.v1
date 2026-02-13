@@ -21,20 +21,37 @@ export default function Dropdown({
   placeholder,
 }: DropdownProps) {
   return (
-    <label className="field">
-      {label}
-      <select
-        className="dropdown"
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-      >
-        {placeholder && <option value="">{placeholder}</option>}
-        {options.map((option) => (
-          <option key={option.value} value={option.value}>
-            {option.label}
-          </option>
-        ))}
-      </select>
-    </label>
+    <>
+      {label ? (
+        <label className="field">
+          {label}
+          <select
+            className="dropdown"
+            value={value}
+            onChange={(event) => onChange(event.target.value)}
+          >
+            {placeholder && <option value="">{placeholder}</option>}
+            {options.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </label>
+      ) : (
+        <select
+          className="dropdown px-3 py-2 rounded-lg border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+        >
+          {placeholder && <option value="">{placeholder}</option>}
+          {options.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+      )}
+    </>
   );
 }

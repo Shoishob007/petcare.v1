@@ -158,6 +158,7 @@ export default function ReportsSection() {
   const [replyTarget, setReplyTarget] = useState<Record<string, string | null>>(
     {},
   );
+  const [likedReports, setLikedReports] = useState<Set<string>>(new Set());
 
   const canSubmit = useMemo(() => title.trim().length > 0, [title]);
 
@@ -302,13 +303,27 @@ export default function ReportsSection() {
 
   // React to report
   async function reactToReport(reportId: string) {
+    const isLiked = likedReports.has(reportId);
+
     try {
       const res = await fetch(`${API_BASE}/reports/${reportId}/reactions`, {
         method: "POST",
       });
-      if (!res.ok) throw new Error("Failed to react");
+      if (!res.ok) throw new Error(`Failed to ${isLiked ? "unlike" : "like"}`);
 
       const updated = (await res.json()) as ReportResponse;
+
+      // Toggle liked state
+      setLikedReports((prev) => {
+        const newSet = new Set(prev);
+        if (isLiked) {
+          newSet.delete(reportId);
+        } else {
+          newSet.add(reportId);
+        }
+        return newSet;
+      });
+
       setReports((prev) =>
         prev.map((r) =>
           r.id === updated.id
@@ -563,7 +578,11 @@ export default function ReportsSection() {
                       onClick={() => reactToReport(report.id)}
                       className="text-xs"
                     >
-                      <ThumbsUp className="w-4 h-4 mr-1" />
+                      {likedReports.has(report.id) ? (
+                        <ThumbsUp className="w-4 h-4 mr-1 fill-blue-500 text-blue-500" />
+                      ) : (
+                        <ThumbsUp className="w-4 h-4 mr-1" />
+                      )}
                       {report.reaction_count}
                     </Button>
                     <Button

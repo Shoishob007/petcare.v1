@@ -70,6 +70,7 @@ export default function FeedPage() {
   const [replyTarget, setReplyTarget] = useState<Record<string, string | null>>(
     {},
   );
+  const [likedItems, setLikedItems] = useState<Set<string>>(new Set());
 
   const categoryOptions = [
     { label: "All categories", value: "all" },
@@ -111,6 +112,10 @@ export default function FeedPage() {
       if (reset) {
         setItems(data);
         setOffset(PAGE_SIZE);
+        // Prefetch comments for first few items
+        data.slice(0, 5).forEach((item) => {
+          fetchComments(item).catch(() => {});
+        });
       } else {
         setItems((prev) => [...prev, ...data]);
         setOffset((prev) => prev + PAGE_SIZE);
@@ -261,6 +266,56 @@ export default function FeedPage() {
     }
   }
 
+  async function toggleReaction(item: FeedItem) {
+    const itemKey = getItemKey(item);
+    const isLiked = likedItems.has(itemKey);
+
+    try {
+      const endpoint =
+        item.item_type === "report"
+          ? `${API_BASE}/reports/${item.id}/reactions`
+          : `${API_BASE}/community-posts/${item.id}/reactions`;
+
+      const res = await fetch(endpoint, {
+        method: "POST",
+      });
+
+      if (!res.ok) {
+        throw new Error(
+          `Failed to ${isLiked ? "unlike" : "like"} (${res.status})`,
+        );
+      }
+
+      // Toggle liked state
+      setLikedItems((prev) => {
+        const newSet = new Set(prev);
+        if (isLiked) {
+          newSet.delete(itemKey);
+        } else {
+          newSet.add(itemKey);
+        }
+        return newSet;
+      });
+
+      // Update reaction count in items
+      setItems((prev) =>
+        prev.map((i) =>
+          getItemKey(i) === itemKey
+            ? {
+                ...i,
+                reaction_count: (i.reaction_count || 0) + (isLiked ? -1 : 1),
+              }
+            : i,
+        ),
+      );
+    } catch (e) {
+      const errorMsg =
+        e instanceof Error ? e.message : "Error toggling reaction";
+      setError(errorMsg);
+      toast.error(errorMsg);
+    }
+  }
+
   return (
     <main className="min-h-screen bg-background page-shell">
       <MainNav />
@@ -356,14 +411,12 @@ export default function FeedPage() {
                 ))}
               </select>
 
-              <label className="field">
-                Search
-                <input
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  placeholder="Search posts"
-                />
-              </label>
+              <input
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Search posts"
+                className="px-3 py-2 rounded-lg border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring min-w-[200px]"
+              />
             </div>
           </div>
 
@@ -481,8 +534,15 @@ export default function FeedPage() {
 
                       {/* Actions */}
                       <div className="flex items-center gap-4 pt-3 border-t text-muted-foreground text-sm">
-                        <button className="flex items-center gap-1 hover:text-red-500 transition-colors">
-                          <Heart className="w-4 h-4" />
+                        <button
+                          className="flex items-center gap-1 hover:text-red-500 transition-colors"
+                          onClick={() => toggleReaction(item)}
+                        >
+                          {likedItems.has(itemKey) ? (
+                            <Heart className="w-4 h-4 fill-red-500 text-red-500" />
+                          ) : (
+                            <Heart className="w-4 h-4" />
+                          )}
                           <span>{item.reaction_count || 0}</span>
                         </button>
                         <button
@@ -501,31 +561,38 @@ export default function FeedPage() {
                         </button>
                       </div>
 
-                      {/* Comment Preview */}
+                      {/* Comment Preview - Always show if comments exist */}
                       {!isCommentsOpen && threads.length > 0 && (
-                        <div className="border-t pt-4 mt-4 space-y-3">
-                          <div className="bg-muted/30 rounded-lg p-3 text-sm">
-                            <div className="comment-meta mb-1">
-                              <span className="font-medium">
-                                {threads[0].root.author_name || "Anonymous"}
-                              </span>
-                              <span className="text-xs">
-                                {formatDate(threads[0].root.created_at)}
-                              </span>
-                            </div>
-                            <div className="text-muted-foreground line-clamp-2">
-                              {threads[0].root.body}
-                            </div>
-                            {threads.length > 1 && (
-                              <button
-                                type="button"
-                                className="text-xs text-primary hover:underline mt-2"
-                                onClick={() => toggleComments(item)}
+                        <div className="border-t pt-3 mt-3">
+                          <div className="max-h-[200px] overflow-y-auto space-y-2">
+                            {threads.slice(0, 2).map(({ root }) => (
+                              <div
+                                key={root.id}
+                                className="bg-muted/30 rounded-lg p-3 text-sm"
                               >
-                                View all {itemComments.length} comments →
-                              </button>
-                            )}
+                                <div className="flex items-center justify-between mb-1">
+                                  <span className="font-medium text-xs">
+                                    {root.author_name || "Anonymous"}
+                                  </span>
+                                  <span className="text-xs text-muted-foreground">
+                                    {formatDate(root.created_at)}
+                                  </span>
+                                </div>
+                                <div className="text-muted-foreground text-sm line-clamp-2">
+                                  {root.body}
+                                </div>
+                              </div>
+                            ))}
                           </div>
+                          {threads.length > 2 && (
+                            <button
+                              type="button"
+                              className="text-xs text-primary hover:underline mt-2 font-medium"
+                              onClick={() => toggleComments(item)}
+                            >
+                              View all {itemComments.length} comments →
+                            </button>
+                          )}
                         </div>
                       )}
 
