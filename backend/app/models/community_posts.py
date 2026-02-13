@@ -36,6 +36,7 @@ class CommunityPost(Base):
     # Additional Fields
     tags = Column(String, nullable=True)  # comma-separated
     location = Column(String, nullable=True)
+    image_url = Column(String, nullable=True)  # Featured/primary image
     featured = Column(Boolean, default=False)
     featured_at = Column(DateTime, nullable=True)
     

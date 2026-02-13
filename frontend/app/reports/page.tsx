@@ -1,6 +1,6 @@
 import Link from "next/link";
 import MainNav from "../components/MainNav";
-import ReportsSection from "../components/ReportSection";
+import UpdatesBoard from "../components/UpdatesBoard";
 import SiteFooter from "../components/SiteFooter";
 import { MEDIA } from "../lib/media";
 
@@ -76,7 +76,13 @@ export default function ReportsPage() {
           </div>
         </header>
 
-        <ReportsSection />
+        <div id="report-form">
+          <UpdatesBoard
+            defaultType="report"
+            title="Unified reports and community board"
+            subtitle="Track urgent reports alongside community updates without switching screens."
+          />
+        </div>
 
         <section className="panel panel-spaced">
           <div className="panel-header">

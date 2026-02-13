@@ -92,6 +92,7 @@ def ensure_sqlite_community_posts_schema() -> None:
         "status": "VARCHAR",
         "tags": "VARCHAR",
         "location": "VARCHAR",
+        "image_url": "VARCHAR",
         "featured": "BOOLEAN",
         "featured_at": "DATETIME",
         "updated_at": "DATETIME",
