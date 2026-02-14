@@ -28,6 +28,7 @@ import {
   DialogFooter,
 } from "./ui/dialog";
 import MediaGrid from "./MediaGrid";
+import PawLoader from "./PawLoader";
 
 type ReportImage = {
   id: string;
@@ -348,14 +349,12 @@ export default function ReportsSection() {
   }
 
   // Toggle comments
-  async function toggleComments(reportId: string) {
-    const isOpen = !commentsOpen[reportId];
-    setCommentsOpen((prev) => ({ ...prev, [reportId]: isOpen }));
-    if (!isOpen) {
-      setReplyTarget((prev) => ({ ...prev, [reportId]: null }));
+  async function openComments(reportId: string) {
+    if (!commentsOpen[reportId]) {
+      setCommentsOpen((prev) => ({ ...prev, [reportId]: true }));
     }
 
-    if (isOpen && !commentsByReport[reportId]) {
+    if (!commentsByReport[reportId]) {
       try {
         await fetchComments(reportId);
       } catch (e) {
@@ -435,7 +434,7 @@ export default function ReportsSection() {
         {/* Loading state */}
         {loadingReports && reports.length === 0 && (
           <div className="text-center py-12">
-            <p className="text-muted-foreground">Loading reports...</p>
+            <PawLoader label="Loading reports" size="lg" />
           </div>
         )}
 
@@ -463,7 +462,11 @@ export default function ReportsSection() {
                 disabled={loadingReports}
               >
                 <RefreshCw className="w-4 h-4 mr-2" />
-                {loadingReports ? "Refreshing..." : "Refresh"}
+                {loadingReports ? (
+                  <PawLoader label="Refreshing" size="sm" />
+                ) : (
+                  "Refresh"
+                )}
               </Button>
             </div>
           )}
@@ -588,7 +591,7 @@ export default function ReportsSection() {
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={() => toggleComments(report.id)}
+                      onClick={() => openComments(report.id)}
                       className="text-xs"
                     >
                       <MessageCircle className="w-4 h-4 mr-1" />
@@ -638,7 +641,7 @@ export default function ReportsSection() {
                           <button
                             type="button"
                             className="text-xs text-primary hover:underline mt-2"
-                            onClick={() => toggleComments(report.id)}
+                            onClick={() => openComments(report.id)}
                           >
                             View all {reportComments.length} comments →
                           </button>
@@ -926,7 +929,11 @@ export default function ReportsSection() {
                 Cancel
               </Button>
               <Button type="submit" disabled={!canSubmit || submitting}>
-                {submitting ? "Creating..." : "Create Report"}
+                {submitting ? (
+                  <PawLoader label="Creating" size="sm" />
+                ) : (
+                  "Create Report"
+                )}
               </Button>
             </DialogFooter>
           </form>
@@ -1035,10 +1042,18 @@ export default function ReportsSection() {
                   disabled={submitting}
                   className="mr-auto"
                 >
-                  {submitting ? "Deleting..." : "Delete"}
+                  {submitting ? (
+                    <PawLoader label="Deleting" size="sm" />
+                  ) : (
+                    "Delete"
+                  )}
                 </Button>
                 <Button type="submit" disabled={submitting}>
-                  {submitting ? "Saving..." : "Save Changes"}
+                  {submitting ? (
+                    <PawLoader label="Saving" size="sm" />
+                  ) : (
+                    "Save Changes"
+                  )}
                 </Button>
               </DialogFooter>
             </form>

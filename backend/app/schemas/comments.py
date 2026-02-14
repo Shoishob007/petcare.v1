@@ -13,6 +13,7 @@ class ReportCommentCreate(BaseModel):
 class ReportCommentResponse(BaseModel):
     id: str
     report_id: str
+    user_id: Optional[str] = None
     body: str
     author_name: Optional[str] = None
     parent_id: Optional[str] = None
@@ -30,6 +31,7 @@ class CommunityPostCommentCreate(BaseModel):
 class CommunityPostCommentResponse(BaseModel):
     id: str
     post_id: str
+    user_id: Optional[str] = None
     body: str
     author_name: Optional[str] = None
     parent_id: Optional[str] = None

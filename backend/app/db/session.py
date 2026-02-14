@@ -143,3 +143,40 @@ def ensure_sqlite_sicknesses_schema() -> None:
                 conn.execute(
                     text(f"ALTER TABLE sicknesses ADD COLUMN {column_name} {column_type}")
                 )
+
+
+def ensure_sqlite_users_schema() -> None:
+    if settings.DB_ENGINE != "sqlite":
+        return
+
+    inspector = inspect(engine)
+    if "users" not in inspector.get_table_names():
+        return
+
+    existing_columns = {column["name"] for column in inspector.get_columns("users")}
+    if "role" not in existing_columns:
+        with engine.begin() as conn:
+            conn.execute(text("ALTER TABLE users ADD COLUMN role VARCHAR DEFAULT 'user'"))
+
+
+def ensure_sqlite_comments_schema() -> None:
+    if settings.DB_ENGINE != "sqlite":
+        return
+
+    inspector = inspect(engine)
+    table_columns = {
+        "report_comments": "user_id",
+        "community_post_comments": "user_id",
+    }
+
+    with engine.begin() as conn:
+        for table_name, column_name in table_columns.items():
+            if table_name not in inspector.get_table_names():
+                continue
+            existing_columns = {
+                column["name"] for column in inspector.get_columns(table_name)
+            }
+            if column_name not in existing_columns:
+                conn.execute(
+                    text(f"ALTER TABLE {table_name} ADD COLUMN {column_name} VARCHAR")
+                )

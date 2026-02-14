@@ -1,11 +1,42 @@
 from datetime import datetime, timedelta
 from app.db.session import SessionLocal
+from app.core.security import hash_password
 from app.models.user import User, Pet, MedicalRecord, Appointment
 from app.models.reports import Report
 from app.models.community_posts import CommunityPost
 from app.models.sicknesses import Sickness
 from app.models.care_team import CareTeamMember
 import uuid
+
+
+ADMIN_EMAIL = "admin@petcarehub.local"
+ADMIN_PASSWORD = "Admin@12345"
+
+
+def ensure_admin_user(db) -> None:
+    admin_user = db.query(User).filter(User.email == ADMIN_EMAIL).first()
+    if admin_user:
+        changed = False
+        if (admin_user.role or "user").lower() != "admin":
+            admin_user.role = "admin"
+            changed = True
+        if changed:
+            db.commit()
+        return
+
+    admin_user = User(
+        id=generate_id(),
+        email=ADMIN_EMAIL,
+        password=hash_password(ADMIN_PASSWORD),
+        first_name="System",
+        last_name="Admin",
+        username="admin",
+        role="admin",
+        is_active=True,
+        is_verified=True,
+    )
+    db.add(admin_user)
+    db.commit()
 
 
 def generate_id():
@@ -15,8 +46,10 @@ def generate_id():
 def seed_data() -> None:
     db = SessionLocal()
     try:
+        ensure_admin_user(db)
+
         # Check if data already exists
-        if db.query(User).first():
+        if db.query(User).filter(User.email != ADMIN_EMAIL).first():
             return
 
         # ==================== USERS ====================

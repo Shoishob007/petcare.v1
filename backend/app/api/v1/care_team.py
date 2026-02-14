@@ -3,6 +3,7 @@ from typing import List
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
+from app.core.security import require_roles
 from app.db.session import get_db
 from app.models.care_team import CareTeamMember
 from app.schemas.care_team import (
@@ -16,7 +17,9 @@ router = APIRouter()
 
 @router.post("/care-team", response_model=CareTeamMemberResponse)
 def create_care_team_member(
-    payload: CareTeamMemberCreate, db: Session = Depends(get_db)
+    payload: CareTeamMemberCreate,
+    db: Session = Depends(get_db),
+    _admin=Depends(require_roles("admin")),
 ):
     member = CareTeamMember(**payload.dict())
     db.add(member)
@@ -32,7 +35,10 @@ def list_care_team_members(db: Session = Depends(get_db)):
 
 @router.patch("/care-team/{member_id}", response_model=CareTeamMemberResponse)
 def update_care_team_member(
-    member_id: str, payload: CareTeamMemberUpdate, db: Session = Depends(get_db)
+    member_id: str,
+    payload: CareTeamMemberUpdate,
+    db: Session = Depends(get_db),
+    _admin=Depends(require_roles("admin")),
 ):
     member = db.query(CareTeamMember).filter(CareTeamMember.id == member_id).first()
     if not member:
@@ -46,7 +52,11 @@ def update_care_team_member(
 
 
 @router.delete("/care-team/{member_id}")
-def delete_care_team_member(member_id: str, db: Session = Depends(get_db)):
+def delete_care_team_member(
+    member_id: str,
+    db: Session = Depends(get_db),
+    _admin=Depends(require_roles("admin")),
+):
     member = db.query(CareTeamMember).filter(CareTeamMember.id == member_id).first()
     if not member:
         raise HTTPException(status_code=404, detail="Member not found.")

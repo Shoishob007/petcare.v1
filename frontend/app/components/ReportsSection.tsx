@@ -5,6 +5,7 @@ import Button from "./Button";
 import Dialog from "./Dialog";
 import Dropdown from "./Dropdown";
 import MediaGrid from "./MediaGrid";
+import PawLoader from "./PawLoader";
 import { useToast } from "./Toast";
 
 type ReportImage = {
@@ -198,13 +199,11 @@ export default function ReportsSection() {
     setCommentsByReport((prev) => ({ ...prev, [reportId]: data }));
   }
 
-  async function toggleComments(reportId: string) {
-    const open = !commentsOpen[reportId];
-    setCommentsOpen((prev) => ({ ...prev, [reportId]: open }));
-    if (!open) {
-      setReplyTarget((prev) => ({ ...prev, [reportId]: null }));
+  async function openComments(reportId: string) {
+    if (!commentsOpen[reportId]) {
+      setCommentsOpen((prev) => ({ ...prev, [reportId]: true }));
     }
-    if (open && !commentsByReport[reportId]) {
+    if (!commentsByReport[reportId]) {
       try {
         await fetchComments(reportId);
       } catch (e) {
@@ -425,11 +424,17 @@ export default function ReportsSection() {
             type="button"
             onClick={fetchReports}
           >
-            {loadingReports ? "Refreshing..." : "Refresh"}
+            {loadingReports ? (
+              <PawLoader label="Refreshing" size="sm" />
+            ) : (
+              "Refresh"
+            )}
           </Button>
         </div>
 
-        {loadingReports && reports.length === 0 && <p>Loading...</p>}
+        {loadingReports && reports.length === 0 && (
+          <PawLoader label="Loading reports" size="lg" />
+        )}
         {!loadingReports && reports.length === 0 && (
           <p>No reports yet. Be the first to share one.</p>
         )}
@@ -499,9 +504,9 @@ export default function ReportsSection() {
                     variant="ghost"
                     size="sm"
                     type="button"
-                    onClick={() => toggleComments(report.id)}
+                    onClick={() => openComments(report.id)}
                   >
-                    {isCommentsOpen ? "Hide comments" : "Comments"}
+                    Comments
                   </Button>
                   <Button
                     variant="subtle"
@@ -541,7 +546,7 @@ export default function ReportsSection() {
                         <button
                           type="button"
                           className="text-xs text-primary hover:underline mt-2"
-                          onClick={() => toggleComments(report.id)}
+                          onClick={() => openComments(report.id)}
                         >
                           View all {reportComments.length} comments →
                         </button>
@@ -681,7 +686,11 @@ export default function ReportsSection() {
               form="create-report-form"
               disabled={!canSubmit || submitting}
             >
-              {submitting ? "Saving..." : "Create report"}
+              {submitting ? (
+                <PawLoader label="Saving" size="sm" />
+              ) : (
+                "Create report"
+              )}
             </Button>
           </div>
         }
@@ -795,7 +804,11 @@ export default function ReportsSection() {
               form="edit-report-form"
               disabled={actionLoading}
             >
-              {actionLoading ? "Saving..." : "Save changes"}
+              {actionLoading ? (
+                <PawLoader label="Saving" size="sm" />
+              ) : (
+                "Save changes"
+              )}
             </Button>
           </div>
         }
@@ -897,7 +910,11 @@ export default function ReportsSection() {
               onClick={handleDelete}
               disabled={actionLoading}
             >
-              {actionLoading ? "Deleting..." : "Delete"}
+              {actionLoading ? (
+                <PawLoader label="Deleting" size="sm" />
+              ) : (
+                "Delete"
+              )}
             </Button>
           </div>
         }

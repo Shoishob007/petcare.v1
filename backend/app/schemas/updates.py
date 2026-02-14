@@ -75,6 +75,7 @@ class UpdateCommentCreate(BaseModel):
 class UpdateCommentResponse(BaseModel):
     id: str
     item_id: str
+    user_id: Optional[str] = None
     body: str
     author_name: Optional[str] = None
     parent_id: Optional[str] = None

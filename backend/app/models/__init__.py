@@ -6,8 +6,10 @@ from app.models.community_post_images import CommunityPostImage
 from app.models.reports import Report
 from app.models.report_comments import ReportComment
 from app.models.report_images import ReportImage
+from app.models.report_reactions import ReportReaction
 from app.models.sicknesses import Sickness
 from app.models.sickness_images import SicknessImage
+from app.models.community_post_reactions import CommunityPostReaction
 
 __all__ = [
     "User",
@@ -21,6 +23,8 @@ __all__ = [
     "Report",
     "ReportComment",
     "ReportImage",
+    "ReportReaction",
     "Sickness",
     "SicknessImage",
+    "CommunityPostReaction",
 ]

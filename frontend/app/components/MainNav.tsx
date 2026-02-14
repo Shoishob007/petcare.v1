@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Menu,
   Heart,
@@ -13,10 +13,22 @@ import {
 } from "lucide-react";
 import { Button } from "./ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "./ui/sheet";
+import Dropdown from "./Dropdown";
+import { clearAuthSession, getAuthUser } from "../lib/auth";
 
 export default function MainNav() {
   const [open, setOpen] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [userRole, setUserRole] = useState<string>("user");
+  const [userMenuAction, setUserMenuAction] = useState("");
+  const [mobileUserMenuAction, setMobileUserMenuAction] = useState("");
   const pathname = usePathname();
+
+  useEffect(() => {
+    const user = getAuthUser();
+    setIsAuthenticated(Boolean(user));
+    setUserRole((user?.role || "user").toLowerCase());
+  }, [pathname]);
 
   const navigationItems = [
     { href: "/", label: "Home", icon: Home },
@@ -30,6 +42,34 @@ export default function MainNav() {
       ? "text-primary"
       : "text-muted-foreground group-hover:text-foreground";
   };
+
+  const userMenuOptions = [
+    { label: "Account", value: "account" },
+    ...(userRole === "admin" ? [{ label: "Users", value: "users" }] : []),
+    { label: "Logout", value: "logout" },
+  ];
+
+  function handleUserMenuSelection(value: string, isMobile = false) {
+    if (isMobile) {
+      setMobileUserMenuAction("");
+    } else {
+      setUserMenuAction("");
+    }
+    if (!value) return;
+
+    if (value === "account") {
+      window.location.href = "/account";
+      return;
+    }
+    if (value === "users" && userRole === "admin") {
+      window.location.href = "/users";
+      return;
+    }
+    if (value === "logout") {
+      clearAuthSession();
+      window.location.href = "/login";
+    }
+  }
 
   return (
     <nav className="sticky top-0 z-40 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -74,11 +114,35 @@ export default function MainNav() {
 
         {/* Desktop Actions */}
         <div className="hidden md:flex items-center gap-2">
-          <Link href="/feed">
-            <Button variant="default" size="sm" className="group">
-              New update
-            </Button>
-          </Link>
+          {isAuthenticated && (
+            <span className="text-xs text-muted-foreground uppercase tracking-wide px-2">
+              {userRole}
+            </span>
+          )}
+          {isAuthenticated ? (
+            <div className="min-w-[180px]">
+              <Dropdown
+                label=""
+                value={userMenuAction}
+                onChange={(value) => handleUserMenuSelection(value, false)}
+                options={userMenuOptions}
+                placeholder="Account menu"
+              />
+            </div>
+          ) : (
+            <>
+              <Link href="/register">
+                <Button variant="outline" size="sm">
+                  Register
+                </Button>
+              </Link>
+              <Link href="/login">
+                <Button variant="outline" size="sm">
+                  Login
+                </Button>
+              </Link>
+            </>
+          )}
         </div>
 
         {/* Mobile Menu Trigger */}
@@ -126,18 +190,36 @@ export default function MainNav() {
             </div>
 
             <div className="border-t px-6 py-4">
-              <Link
-                href="/feed"
-                onClick={() => setOpen(false)}
-                className="w-full block"
-              >
-                <Button className="w-full mb-2 group" variant="default">
-                  New update
-                </Button>
-              </Link>
-              <p className="text-xs text-muted-foreground text-center">
-                Manage reports and community posts from one place
-              </p>
+              {isAuthenticated && (
+                <div className="mb-3">
+                  <Dropdown
+                    label=""
+                    value={mobileUserMenuAction}
+                    onChange={(value) => {
+                      setOpen(false);
+                      handleUserMenuSelection(value, true);
+                    }}
+                    options={userMenuOptions}
+                    placeholder="Account menu"
+                  />
+                </div>
+              )}
+              <div className="mt-3">
+                {!isAuthenticated ? (
+                  <div className="space-y-2">
+                    <Link href="/register" onClick={() => setOpen(false)}>
+                      <Button className="w-full" variant="outline">
+                        Register
+                      </Button>
+                    </Link>
+                    <Link href="/login" onClick={() => setOpen(false)}>
+                      <Button className="w-full" variant="outline">
+                        Login
+                      </Button>
+                    </Link>
+                  </div>
+                ) : null}
+              </div>
             </div>
           </SheetContent>
         </Sheet>

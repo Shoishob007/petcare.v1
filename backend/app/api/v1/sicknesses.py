@@ -3,6 +3,7 @@ from typing import List
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from sqlalchemy.orm import Session
 
+from app.core.security import require_roles
 from app.core.uploads import save_upload
 from app.db.session import get_db
 from app.models.sickness_images import SicknessImage
@@ -18,7 +19,11 @@ router = APIRouter()
 
 
 @router.post("/sicknesses", response_model=SicknessResponse)
-def create_sickness(payload: SicknessCreate, db: Session = Depends(get_db)):
+def create_sickness(
+    payload: SicknessCreate,
+    db: Session = Depends(get_db),
+    _admin=Depends(require_roles("admin")),
+):
     sickness = Sickness(**payload.dict())
     db.add(sickness)
     db.commit()
@@ -33,7 +38,10 @@ def list_sicknesses(db: Session = Depends(get_db)):
 
 @router.patch("/sicknesses/{sickness_id}", response_model=SicknessResponse)
 def update_sickness(
-    sickness_id: str, payload: SicknessUpdate, db: Session = Depends(get_db)
+    sickness_id: str,
+    payload: SicknessUpdate,
+    db: Session = Depends(get_db),
+    _admin=Depends(require_roles("admin")),
 ):
     sickness = db.query(Sickness).filter(Sickness.id == sickness_id).first()
     if not sickness:
@@ -47,7 +55,11 @@ def update_sickness(
 
 
 @router.delete("/sicknesses/{sickness_id}")
-def delete_sickness(sickness_id: str, db: Session = Depends(get_db)):
+def delete_sickness(
+    sickness_id: str,
+    db: Session = Depends(get_db),
+    _admin=Depends(require_roles("admin")),
+):
     sickness = db.query(Sickness).filter(Sickness.id == sickness_id).first()
     if not sickness:
         raise HTTPException(status_code=404, detail="Sickness not found.")
@@ -67,6 +79,7 @@ def upload_sickness_images(
     sickness_id: str,
     files: List[UploadFile] = File(...),
     db: Session = Depends(get_db),
+    _admin=Depends(require_roles("admin")),
 ):
     sickness = db.query(Sickness).filter(Sickness.id == sickness_id).first()
     if not sickness:

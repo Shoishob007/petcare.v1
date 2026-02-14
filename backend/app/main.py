@@ -12,12 +12,22 @@ from app.api.v1.updates import router as updates_router
 from app.core.config import UPLOAD_DIR
 import app.models
 from app.db.seed import seed_data
-from app.db.session import Base, engine, ensure_sqlite_reports_schema, ensure_sqlite_community_posts_schema, ensure_sqlite_sicknesses_schema
+from app.db.session import (
+    Base,
+    engine,
+    ensure_sqlite_reports_schema,
+    ensure_sqlite_community_posts_schema,
+    ensure_sqlite_sicknesses_schema,
+    ensure_sqlite_users_schema,
+    ensure_sqlite_comments_schema,
+)
 
 Base.metadata.create_all(bind=engine)
 ensure_sqlite_reports_schema()
 ensure_sqlite_community_posts_schema()
 ensure_sqlite_sicknesses_schema()
+ensure_sqlite_users_schema()
+ensure_sqlite_comments_schema()
 
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 

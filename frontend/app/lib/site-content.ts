@@ -43,7 +43,7 @@ export const SECTION_CONTENT = {
       bullets: [
         "Add a clear title and description",
         "Include location and category details",
-        "Refresh the list to see new updates",
+        "Refresh the list to see new posts and updates",
       ],
     },
     ctaLabel: "Open a report",

@@ -3,14 +3,18 @@ from typing import List, Optional, Union
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from sqlalchemy.orm import Session
 
+from app.core.security import get_current_user
 from app.core.uploads import delete_upload, save_upload
 from app.db.session import get_db
 from app.models.community_post_comments import CommunityPostComment
 from app.models.community_post_images import CommunityPostImage
+from app.models.community_post_reactions import CommunityPostReaction
 from app.models.community_posts import CommunityPost
 from app.models.report_comments import ReportComment
 from app.models.report_images import ReportImage
+from app.models.report_reactions import ReportReaction
 from app.models.reports import Report
+from app.models.user import User
 from app.schemas.updates import (
     UpdateCommentCreate,
     UpdateCommentResponse,
@@ -23,6 +27,11 @@ from app.schemas.updates import (
 router = APIRouter()
 
 ALLOWED_ITEM_TYPES = {"report", "community"}
+
+
+def display_name(user: User) -> str:
+    name = " ".join(filter(None, [user.first_name, user.last_name])).strip()
+    return name or user.username or user.email.split("@")[0]
 
 
 def require_item_type(item_type: str) -> str:
@@ -49,6 +58,22 @@ def resolve_content(
     if payload.description is not None:
         return payload.description
     return None
+
+
+def ensure_report_owner_or_admin(report: Report, user: User) -> None:
+    if (user.role or "user").lower() == "admin":
+        return
+    if any(reporter.id == user.id for reporter in report.reporters):
+        return
+    raise HTTPException(status_code=403, detail="Not allowed to modify this report.")
+
+
+def ensure_post_owner_or_admin(post: CommunityPost, user: User) -> None:
+    if (user.role or "user").lower() == "admin":
+        return
+    if post.author_id == user.id:
+        return
+    raise HTTPException(status_code=403, detail="Not allowed to modify this post.")
 
 
 def report_to_response(report: Report) -> UpdateResponse:
@@ -90,6 +115,7 @@ def report_comment_to_response(comment: ReportComment) -> UpdateCommentResponse:
     return UpdateCommentResponse(
         id=comment.id,
         item_id=comment.report_id,
+        user_id=comment.user_id,
         body=comment.body,
         author_name=comment.author_name,
         parent_id=comment.parent_id,
@@ -101,6 +127,7 @@ def post_comment_to_response(comment: CommunityPostComment) -> UpdateCommentResp
     return UpdateCommentResponse(
         id=comment.id,
         item_id=comment.post_id,
+        user_id=comment.user_id,
         body=comment.body,
         author_name=comment.author_name,
         parent_id=comment.parent_id,
@@ -163,7 +190,11 @@ def list_updates(
 
 
 @router.post("/updates", response_model=UpdateResponse)
-def create_update(payload: UpdateCreate, db: Session = Depends(get_db)):
+def create_update(
+    payload: UpdateCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
     item_type = require_item_type(payload.item_type)
     content = resolve_content(item_type, payload)
 
@@ -179,8 +210,9 @@ def create_update(payload: UpdateCreate, db: Session = Depends(get_db)):
             status=payload.status or "open",
             species=payload.species,
             urgency=payload.urgency,
-            reporter_name=payload.reporter_name,
+            reporter_name=payload.reporter_name or display_name(current_user),
         )
+        report.reporters.append(current_user)
         db.add(report)
         db.commit()
         db.refresh(report)
@@ -190,7 +222,8 @@ def create_update(payload: UpdateCreate, db: Session = Depends(get_db)):
         title=payload.title,
         body=content or "",
         category=payload.category,
-        author_name=payload.author_name,
+        author_id=current_user.id,
+        author_name=payload.author_name or display_name(current_user),
         tags=payload.tags,
         image_url=payload.image_url,
         location=payload.location,
@@ -203,7 +236,11 @@ def create_update(payload: UpdateCreate, db: Session = Depends(get_db)):
 
 @router.patch("/updates/{item_type}/{item_id}", response_model=UpdateResponse)
 def update_update(
-    item_type: str, item_id: str, payload: UpdateUpdate, db: Session = Depends(get_db)
+    item_type: str,
+    item_id: str,
+    payload: UpdateUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     item_type = require_item_type(item_type)
     content = resolve_content(item_type, payload)
@@ -212,6 +249,9 @@ def update_update(
         report = db.query(Report).filter(Report.id == item_id).first()
         if not report:
             raise HTTPException(status_code=404, detail="Report not found.")
+
+        ensure_report_owner_or_admin(report, current_user)
+
         update_data = payload.dict(exclude_unset=True)
         if (
             "content" in update_data
@@ -221,6 +261,7 @@ def update_update(
             update_data["description"] = content
         for key in ("content", "description", "body"):
             update_data.pop(key, None)
+
         allowed = {
             "title",
             "description",
@@ -234,6 +275,7 @@ def update_update(
         for key, value in update_data.items():
             if key in allowed:
                 setattr(report, key, value)
+
         db.commit()
         db.refresh(report)
         return report_to_response(report)
@@ -241,6 +283,9 @@ def update_update(
     post = db.query(CommunityPost).filter(CommunityPost.id == item_id).first()
     if not post:
         raise HTTPException(status_code=404, detail="Post not found.")
+
+    ensure_post_owner_or_admin(post, current_user)
+
     update_data = payload.dict(exclude_unset=True)
     if (
         "content" in update_data
@@ -259,23 +304,40 @@ def update_update(
         ):
             delete_upload(post.image_url.replace("/uploads/", ""))
 
-    allowed = {"title", "body", "category", "author_name", "tags", "image_url", "location"}
+    allowed = {
+        "title",
+        "body",
+        "category",
+        "author_name",
+        "tags",
+        "image_url",
+        "location",
+    }
     for key, value in update_data.items():
         if key in allowed:
             setattr(post, key, value)
+
     db.commit()
     db.refresh(post)
     return post_to_response(post)
 
 
 @router.delete("/updates/{item_type}/{item_id}")
-def delete_update(item_type: str, item_id: str, db: Session = Depends(get_db)):
+def delete_update(
+    item_type: str,
+    item_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
     item_type = require_item_type(item_type)
 
     if item_type == "report":
         report = db.query(Report).filter(Report.id == item_id).first()
         if not report:
             raise HTTPException(status_code=404, detail="Report not found.")
+
+        ensure_report_owner_or_admin(report, current_user)
+
         for image in report.images:
             delete_upload(image.file_name)
         db.delete(report)
@@ -285,6 +347,9 @@ def delete_update(item_type: str, item_id: str, db: Session = Depends(get_db)):
     post = db.query(CommunityPost).filter(CommunityPost.id == item_id).first()
     if not post:
         raise HTTPException(status_code=404, detail="Post not found.")
+
+    ensure_post_owner_or_admin(post, current_user)
+
     if post.image_url and post.image_url.startswith("/uploads/"):
         delete_upload(post.image_url.replace("/uploads/", ""))
     for image in post.images:
@@ -302,6 +367,7 @@ def upload_update_images(
     item_id: str,
     files: List[UploadFile] = File(...),
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     item_type = require_item_type(item_type)
     if not files:
@@ -311,6 +377,9 @@ def upload_update_images(
         report = db.query(Report).filter(Report.id == item_id).first()
         if not report:
             raise HTTPException(status_code=404, detail="Report not found.")
+
+        ensure_report_owner_or_admin(report, current_user)
+
         images: List[ReportImage] = []
         for file in files:
             file_name = save_upload(file)
@@ -325,6 +394,9 @@ def upload_update_images(
     post = db.query(CommunityPost).filter(CommunityPost.id == item_id).first()
     if not post:
         raise HTTPException(status_code=404, detail="Post not found.")
+
+    ensure_post_owner_or_admin(post, current_user)
+
     images: List[CommunityPostImage] = []
     for file in files:
         file_name = save_upload(file)
@@ -337,15 +409,85 @@ def upload_update_images(
     return images
 
 
-@router.post("/updates/{item_type}/{item_id}/reactions", response_model=UpdateResponse)
-def react_to_update(item_type: str, item_id: str, db: Session = Depends(get_db)):
+@router.delete("/updates/{item_type}/{item_id}/images/{image_id}")
+def delete_update_image(
+    item_type: str,
+    item_id: str,
+    image_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
     item_type = require_item_type(item_type)
 
     if item_type == "report":
         report = db.query(Report).filter(Report.id == item_id).first()
         if not report:
             raise HTTPException(status_code=404, detail="Report not found.")
-        report.reaction_count = (report.reaction_count or 0) + 1
+
+        ensure_report_owner_or_admin(report, current_user)
+
+        image = (
+            db.query(ReportImage)
+            .filter(ReportImage.id == image_id, ReportImage.report_id == item_id)
+            .first()
+        )
+        if not image:
+            raise HTTPException(status_code=404, detail="Image not found.")
+
+        delete_upload(image.file_name)
+        db.delete(image)
+        db.commit()
+        return {"status": "deleted"}
+
+    post = db.query(CommunityPost).filter(CommunityPost.id == item_id).first()
+    if not post:
+        raise HTTPException(status_code=404, detail="Post not found.")
+
+    ensure_post_owner_or_admin(post, current_user)
+
+    image = (
+        db.query(CommunityPostImage)
+        .filter(CommunityPostImage.id == image_id, CommunityPostImage.post_id == item_id)
+        .first()
+    )
+    if not image:
+        raise HTTPException(status_code=404, detail="Image not found.")
+
+    delete_upload(image.file_name)
+    db.delete(image)
+    db.commit()
+    return {"status": "deleted"}
+
+
+@router.post("/updates/{item_type}/{item_id}/reactions", response_model=UpdateResponse)
+def react_to_update(
+    item_type: str,
+    item_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    item_type = require_item_type(item_type)
+
+    if item_type == "report":
+        report = db.query(Report).filter(Report.id == item_id).first()
+        if not report:
+            raise HTTPException(status_code=404, detail="Report not found.")
+
+        existing = (
+            db.query(ReportReaction)
+            .filter(
+                ReportReaction.report_id == item_id,
+                ReportReaction.user_id == current_user.id,
+            )
+            .first()
+        )
+        if existing:
+            db.delete(existing)
+            report.reaction_count = max(0, (report.reaction_count or 0) - 1)
+        else:
+            db.add(ReportReaction(report_id=item_id, user_id=current_user.id))
+            report.reaction_count = (report.reaction_count or 0) + 1
+
         db.commit()
         db.refresh(report)
         return report_to_response(report)
@@ -353,7 +495,22 @@ def react_to_update(item_type: str, item_id: str, db: Session = Depends(get_db))
     post = db.query(CommunityPost).filter(CommunityPost.id == item_id).first()
     if not post:
         raise HTTPException(status_code=404, detail="Post not found.")
-    post.reaction_count = (post.reaction_count or 0) + 1
+
+    existing = (
+        db.query(CommunityPostReaction)
+        .filter(
+            CommunityPostReaction.post_id == item_id,
+            CommunityPostReaction.user_id == current_user.id,
+        )
+        .first()
+    )
+    if existing:
+        db.delete(existing)
+        post.reaction_count = max(0, (post.reaction_count or 0) - 1)
+    else:
+        db.add(CommunityPostReaction(post_id=item_id, user_id=current_user.id))
+        post.reaction_count = (post.reaction_count or 0) + 1
+
     db.commit()
     db.refresh(post)
     return post_to_response(post)
@@ -363,9 +520,7 @@ def react_to_update(item_type: str, item_id: str, db: Session = Depends(get_db))
     "/updates/{item_type}/{item_id}/comments",
     response_model=List[UpdateCommentResponse],
 )
-def list_update_comments(
-    item_type: str, item_id: str, db: Session = Depends(get_db)
-):
+def list_update_comments(item_type: str, item_id: str, db: Session = Depends(get_db)):
     item_type = require_item_type(item_type)
 
     if item_type == "report":
@@ -395,6 +550,7 @@ def create_update_comment(
     item_id: str,
     payload: UpdateCommentCreate,
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     item_type = require_item_type(item_type)
 
@@ -402,7 +558,14 @@ def create_update_comment(
         report = db.query(Report).filter(Report.id == item_id).first()
         if not report:
             raise HTTPException(status_code=404, detail="Report not found.")
-        comment = ReportComment(report_id=item_id, **payload.dict())
+        comment = ReportComment(
+            report_id=item_id,
+            user_id=current_user.id,
+            body=payload.body,
+            author_name=display_name(current_user),
+            parent_id=payload.parent_id,
+        )
+        report.comment_count = (report.comment_count or 0) + 1
         db.add(comment)
         db.commit()
         db.refresh(comment)
@@ -411,7 +574,15 @@ def create_update_comment(
     post = db.query(CommunityPost).filter(CommunityPost.id == item_id).first()
     if not post:
         raise HTTPException(status_code=404, detail="Post not found.")
-    comment = CommunityPostComment(post_id=item_id, **payload.dict())
+
+    comment = CommunityPostComment(
+        post_id=item_id,
+        user_id=current_user.id,
+        body=payload.body,
+        author_name=display_name(current_user),
+        parent_id=payload.parent_id,
+    )
+    post.comment_count = (post.comment_count or 0) + 1
     db.add(comment)
     db.commit()
     db.refresh(comment)

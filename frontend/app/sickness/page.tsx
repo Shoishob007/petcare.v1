@@ -6,8 +6,10 @@ import Dialog from "../components/Dialog";
 import Dropdown from "../components/Dropdown";
 import MainNav from "../components/MainNav";
 import MediaGrid from "../components/MediaGrid";
+import PawLoader from "../components/PawLoader";
 import SiteFooter from "../components/SiteFooter";
 import { useToast } from "../components/Toast";
+import { getAuthToken, getAuthUser } from "../lib/auth";
 
 type Sickness = {
   id: string;
@@ -72,6 +74,26 @@ export default function SicknessPage() {
   const [editSeverity, setEditSeverity] = useState("moderate");
   const [editImageFiles, setEditImageFiles] = useState<File[]>([]);
   const [actionLoading, setActionLoading] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  useEffect(() => {
+    const user = getAuthUser();
+    setIsAdmin((user?.role || "").toLowerCase() === "admin");
+  }, []);
+
+  function requireAdminToken() {
+    const token = getAuthToken();
+    if (!token) {
+      toast.error("Please login as admin.");
+      window.location.href = "/login";
+      return null;
+    }
+    if (!isAdmin) {
+      toast.error("Admin role required for this action.");
+      return null;
+    }
+    return token;
+  }
 
   async function fetchSicknesses() {
     setLoading(true);
@@ -92,13 +114,18 @@ export default function SicknessPage() {
     }
   }
 
-  async function uploadSicknessImages(sicknessId: string, files: File[]) {
+  async function uploadSicknessImages(
+    sicknessId: string,
+    files: File[],
+    token: string,
+  ) {
     const formData = new FormData();
     files.forEach((file) => {
       formData.append("files", file);
     });
     const res = await fetch(`${API_BASE}/sicknesses/${sicknessId}/images`, {
       method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
       body: formData,
     });
     if (!res.ok) {
@@ -131,9 +158,15 @@ export default function SicknessPage() {
     setSaving(true);
     setError(null);
     try {
+      const token = requireAdminToken();
+      if (!token) return;
+
       const res = await fetch(`${API_BASE}/sicknesses`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
         body: JSON.stringify({
           name: name.trim(),
           species: species.trim() || undefined,
@@ -148,7 +181,11 @@ export default function SicknessPage() {
       }
       let created = (await res.json()) as Sickness;
       if (imageFiles.length > 0) {
-        const uploaded = await uploadSicknessImages(created.id, imageFiles);
+        const uploaded = await uploadSicknessImages(
+          created.id,
+          imageFiles,
+          token,
+        );
         created = { ...created, images: uploaded };
       }
       setItems((prev) => [created, ...prev]);
@@ -188,9 +225,15 @@ export default function SicknessPage() {
     setActionLoading(true);
     setError(null);
     try {
+      const token = requireAdminToken();
+      if (!token) return;
+
       const res = await fetch(`${API_BASE}/sicknesses/${activeItem.id}`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
         body: JSON.stringify({
           name: editName.trim() || undefined,
           species: editSpecies.trim() || undefined,
@@ -205,7 +248,11 @@ export default function SicknessPage() {
       }
       let updated = (await res.json()) as Sickness;
       if (editImageFiles.length > 0) {
-        const uploaded = await uploadSicknessImages(updated.id, editImageFiles);
+        const uploaded = await uploadSicknessImages(
+          updated.id,
+          editImageFiles,
+          token,
+        );
         updated = { ...updated, images: uploaded };
       }
       setItems((prev) =>
@@ -232,8 +279,12 @@ export default function SicknessPage() {
     setActionLoading(true);
     setError(null);
     try {
+      const token = requireAdminToken();
+      if (!token) return;
+
       const res = await fetch(`${API_BASE}/sicknesses/${activeItem.id}`, {
         method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
       });
       if (!res.ok) {
         throw new Error(`Failed to delete sickness (${res.status})`);
@@ -264,11 +315,19 @@ export default function SicknessPage() {
               next steps.
             </p>
             <div className="hero-actions">
-              <Button type="button" onClick={() => setCreateOpen(true)}>
+              <Button
+                type="button"
+                onClick={() => setCreateOpen(true)}
+                disabled={!isAdmin}
+              >
                 Add condition
               </Button>
               <Button variant="ghost" type="button" onClick={fetchSicknesses}>
-                {loading ? "Refreshing..." : "Refresh"}
+                {loading ? (
+                  <PawLoader label="Refreshing" size="sm" />
+                ) : (
+                  "Refresh"
+                )}
               </Button>
             </div>
           </div>
@@ -291,7 +350,7 @@ export default function SicknessPage() {
               <h2>Quick filters</h2>
               <p>Find conditions faster.</p>
             </div>
-            <div className="form-grid">
+            <div className="quick-filters-row">
               <label className="field">
                 Search
                 <input
@@ -317,7 +376,9 @@ export default function SicknessPage() {
               <p className="subtext">{filtered.length} conditions shown</p>
             </div>
           </div>
-          {loading && items.length === 0 && <p>Loading...</p>}
+          {loading && items.length === 0 && (
+            <PawLoader label="Loading conditions" size="lg" />
+          )}
           {error && <p className="error">{error}</p>}
           <div className="grid-list">
             {filtered.map((item) => (
@@ -361,6 +422,7 @@ export default function SicknessPage() {
                     size="sm"
                     type="button"
                     onClick={() => openEdit(item)}
+                    disabled={!isAdmin}
                   >
                     Edit
                   </Button>
@@ -369,6 +431,7 @@ export default function SicknessPage() {
                     size="sm"
                     type="button"
                     onClick={() => openDelete(item)}
+                    disabled={!isAdmin}
                   >
                     Delete
                   </Button>
@@ -393,7 +456,11 @@ export default function SicknessPage() {
               Cancel
             </Button>
             <Button type="submit" form="create-sickness-form" disabled={saving}>
-              {saving ? "Saving..." : "Add condition"}
+              {saving ? (
+                <PawLoader label="Saving" size="sm" />
+              ) : (
+                "Add condition"
+              )}
             </Button>
           </div>
         }
@@ -480,7 +547,11 @@ export default function SicknessPage() {
               form="edit-sickness-form"
               disabled={actionLoading}
             >
-              {actionLoading ? "Saving..." : "Save changes"}
+              {actionLoading ? (
+                <PawLoader label="Saving" size="sm" />
+              ) : (
+                "Save changes"
+              )}
             </Button>
           </div>
         }
@@ -568,7 +639,11 @@ export default function SicknessPage() {
               onClick={handleDelete}
               disabled={actionLoading}
             >
-              {actionLoading ? "Deleting..." : "Delete"}
+              {actionLoading ? (
+                <PawLoader label="Deleting" size="sm" />
+              ) : (
+                "Delete"
+              )}
             </Button>
           </div>
         }

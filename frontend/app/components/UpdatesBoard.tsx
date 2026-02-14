@@ -6,7 +6,9 @@ import Button from "./Button";
 import Dialog from "./Dialog";
 import Dropdown from "./Dropdown";
 import MediaGrid from "./MediaGrid";
+import PawLoader from "./PawLoader";
 import { useToast } from "./Toast";
+import { getAuthToken } from "../lib/auth";
 
 type UpdateItemType = "report" | "community";
 
@@ -41,6 +43,12 @@ type UpdateComment = {
   body: string;
   author_name?: string | null;
   parent_id?: string | null;
+  created_at: string;
+};
+
+type EditableImage = {
+  id: string;
+  url: string;
   created_at: string;
 };
 
@@ -156,7 +164,7 @@ const getCategoryOptions = (items: UpdateItem[]) => {
 
 export default function UpdatesBoard({
   defaultType = "all",
-  title = "Unified community and reports board",
+  title = "Browse your feed",
   subtitle = "Manage pet reports and community updates from one shared hub.",
 }: UpdatesBoardProps) {
   const toast = useToast();
@@ -203,6 +211,12 @@ export default function UpdatesBoard({
   const [editTags, setEditTags] = useState("");
   const [editImageUrl, setEditImageUrl] = useState("");
   const [editFiles, setEditFiles] = useState<File[]>([]);
+  const [editExistingImages, setEditExistingImages] = useState<EditableImage[]>(
+    [],
+  );
+  const [removedImageIds, setRemovedImageIds] = useState<Set<string>>(
+    new Set(),
+  );
 
   const [commentsOpen, setCommentsOpen] = useState<Record<string, boolean>>({});
   const [commentsByItem, setCommentsByItem] = useState<
@@ -229,6 +243,16 @@ export default function UpdatesBoard({
   }, [defaultType]);
 
   const itemKey = (item: UpdateItem) => `${item.item_type}:${item.id}`;
+
+  const requireAuthToken = () => {
+    const token = getAuthToken();
+    if (!token) {
+      toast.error("Please login to perform this action.");
+      window.location.href = "/login";
+      return null;
+    }
+    return token;
+  };
 
   async function fetchUpdates() {
     setLoading(true);
@@ -260,6 +284,7 @@ export default function UpdatesBoard({
     itemType: UpdateItemType,
     itemId: string,
     selected: File[],
+    token: string,
   ) {
     if (selected.length === 0) return [];
     const formData = new FormData();
@@ -268,6 +293,7 @@ export default function UpdatesBoard({
       `/updates/${itemType}/${itemId}/images`,
       {
         method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
         body: formData,
       },
     );
@@ -285,6 +311,9 @@ export default function UpdatesBoard({
     setSaving(true);
     setFormError(null);
     try {
+      const token = requireAuthToken();
+      if (!token) return;
+
       const payload = {
         item_type: draftType,
         title: titleDraft.trim(),
@@ -313,9 +342,15 @@ export default function UpdatesBoard({
 
       const res = await fetchWithApiFallback(`/updates`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
         body: JSON.stringify(payload),
       });
+      if (res.status === 401) {
+        throw new Error("Please login to create updates.");
+      }
       if (!res.ok) {
         throw new Error(`Failed to create update (${res.status})`);
       }
@@ -325,6 +360,7 @@ export default function UpdatesBoard({
           created.item_type,
           created.id,
           filesDraft,
+          token,
         );
         created = { ...created, images: uploaded };
       }
@@ -367,8 +403,40 @@ export default function UpdatesBoard({
     setEditTags(item.tags || "");
     setEditImageUrl(item.image_url || "");
     setEditFiles([]);
+    setEditExistingImages(item.images || []);
+    setRemovedImageIds(new Set());
     setEditOpen(true);
     setFormError(null);
+  }
+
+  function toggleRemoveExistingImage(imageId: string) {
+    setRemovedImageIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(imageId)) {
+        next.delete(imageId);
+      } else {
+        next.add(imageId);
+      }
+      return next;
+    });
+  }
+
+  async function deleteExistingImage(
+    itemType: UpdateItemType,
+    itemId: string,
+    imageId: string,
+    token: string,
+  ) {
+    const res = await fetchWithApiFallback(
+      `/updates/${itemType}/${itemId}/images/${imageId}`,
+      {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      },
+    );
+    if (!res.ok) {
+      throw new Error(`Failed to remove image (${res.status})`);
+    }
   }
 
   async function handleEdit(e: React.FormEvent<HTMLFormElement>) {
@@ -378,6 +446,9 @@ export default function UpdatesBoard({
     setActionLoading(true);
     setFormError(null);
     try {
+      const token = requireAuthToken();
+      if (!token) return;
+
       const payload = {
         title: editTitle.trim() || undefined,
         content: editContent.trim() || undefined,
@@ -411,19 +482,46 @@ export default function UpdatesBoard({
         `/updates/${activeItem.item_type}/${activeItem.id}`,
         {
           method: "PATCH",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
           body: JSON.stringify(payload),
         },
       );
+      if (res.status === 401) {
+        throw new Error("Please login to edit updates.");
+      }
       if (!res.ok) {
         throw new Error(`Failed to update (${res.status})`);
       }
       let updated = (await res.json()) as UpdateItem;
+
+      const markedForDelete = Array.from(removedImageIds);
+      for (const imageId of markedForDelete) {
+        await deleteExistingImage(
+          updated.item_type,
+          updated.id,
+          imageId,
+          token,
+        );
+      }
+
+      if (markedForDelete.length > 0) {
+        updated = {
+          ...updated,
+          images: (updated.images || []).filter(
+            (image) => !removedImageIds.has(image.id),
+          ),
+        };
+      }
+
       if (editFiles.length > 0) {
         const uploaded = await uploadImages(
           updated.item_type,
           updated.id,
           editFiles,
+          token,
         );
         updated = { ...updated, images: uploaded };
       }
@@ -433,6 +531,8 @@ export default function UpdatesBoard({
         ),
       );
       setEditOpen(false);
+      setEditExistingImages([]);
+      setRemovedImageIds(new Set());
       toast.success("Update saved successfully!");
     } catch (e) {
       const errorMsg = e instanceof Error ? e.message : "Unknown error";
@@ -453,10 +553,19 @@ export default function UpdatesBoard({
     setActionLoading(true);
     setFormError(null);
     try {
+      const token = requireAuthToken();
+      if (!token) return;
+
       const res = await fetchWithApiFallback(
         `/updates/${activeItem.item_type}/${activeItem.id}`,
-        { method: "DELETE" },
+        {
+          method: "DELETE",
+          headers: { Authorization: `Bearer ${token}` },
+        },
       );
+      if (res.status === 401) {
+        throw new Error("Please login to delete updates.");
+      }
       if (!res.ok) {
         throw new Error(`Failed to delete (${res.status})`);
       }
@@ -479,10 +588,19 @@ export default function UpdatesBoard({
     const isLiked = likedItems.has(key);
 
     try {
+      const token = requireAuthToken();
+      if (!token) return;
+
       const res = await fetchWithApiFallback(
         `/updates/${item.item_type}/${item.id}/reactions`,
-        { method: "POST" },
+        {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}` },
+        },
       );
+      if (res.status === 401) {
+        throw new Error("Please login to react.");
+      }
       if (!res.ok) {
         throw new Error(`Failed to react (${res.status})`);
       }
@@ -522,14 +640,12 @@ export default function UpdatesBoard({
     setCommentsByItem((prev) => ({ ...prev, [itemKey(item)]: data }));
   }
 
-  async function toggleComments(item: UpdateItem) {
+  async function openComments(item: UpdateItem) {
     const key = itemKey(item);
-    const open = !commentsOpen[key];
-    setCommentsOpen((prev) => ({ ...prev, [key]: open }));
-    if (!open) {
-      setReplyTarget((prev) => ({ ...prev, [key]: null }));
+    if (!commentsOpen[key]) {
+      setCommentsOpen((prev) => ({ ...prev, [key]: true }));
     }
-    if (open && !commentsByItem[key]) {
+    if (!commentsByItem[key]) {
       try {
         await fetchComments(item);
       } catch (e) {
@@ -547,17 +663,26 @@ export default function UpdatesBoard({
     const draft = parentId ? replyDraft[draftKey] : commentDraft[key];
     if (!draft?.trim()) return;
     try {
+      const token = requireAuthToken();
+      if (!token) return;
+
       const res = await fetchWithApiFallback(
         `/updates/${item.item_type}/${item.id}/comments`,
         {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
           body: JSON.stringify({
             body: draft.trim(),
             parent_id: parentId || undefined,
           }),
         },
       );
+      if (res.status === 401) {
+        throw new Error("Please login to comment.");
+      }
       if (!res.ok) {
         throw new Error(`Failed to add comment (${res.status})`);
       }
@@ -682,10 +807,10 @@ export default function UpdatesBoard({
         </div>
         <div className="community-hero-actions">
           <Button type="button" onClick={() => setCreateOpen(true)}>
-            New update
+            New Post
           </Button>
           <Button variant="ghost" type="button" onClick={fetchUpdates}>
-            {loading ? "Refreshing..." : "Refresh"}
+            {loading ? <PawLoader label="Refreshing" size="sm" /> : "Refresh"}
           </Button>
         </div>
       </div>
@@ -746,7 +871,9 @@ export default function UpdatesBoard({
         />
       </div>
       {error && <p className="error">{error}</p>}
-      {loading && items.length === 0 && <p>Loading...</p>}
+      {loading && items.length === 0 && (
+        <PawLoader label="Loading updates" size="lg" />
+      )}
       {!loading && filteredItems.length === 0 && (
         <div className="update-empty">
           <Sparkles size={18} />
@@ -873,10 +1000,10 @@ export default function UpdatesBoard({
                   <button
                     className="social-action"
                     type="button"
-                    onClick={() => toggleComments(item)}
+                    onClick={() => openComments(item)}
                   >
                     <MessageCircle size={16} />
-                    {isCommentsOpen ? "Hide" : "Comment"}
+                    Comment
                   </button>
                   <button className="social-action" type="button">
                     <Share2 size={16} />
@@ -929,7 +1056,7 @@ export default function UpdatesBoard({
                     <button
                       type="button"
                       className="text-xs text-primary hover:underline mt-2 font-medium"
-                      onClick={() => toggleComments(item)}
+                      onClick={() => openComments(item)}
                     >
                       View all {itemComments.length} comments
                     </button>
@@ -942,8 +1069,20 @@ export default function UpdatesBoard({
                   {threads.map(({ root, replies }) => (
                     <div key={root.id} className="comment-item">
                       <div className="comment-meta">
-                        <span>{root.author_name || "Anonymous"}</span>
-                        <span>{formatDate(root.created_at)}</span>
+                        <span className="comment-head">
+                          <span className="comment-avatar">
+                            {getInitials(root.author_name || "Anonymous")}
+                          </span>
+                          <span className="comment-author-name">
+                            {root.author_name || "Anonymous"}
+                          </span>
+                          <span className="comment-type-badge comment">
+                            Comment
+                          </span>
+                        </span>
+                        <span className="comment-time">
+                          {formatDate(root.created_at)}
+                        </span>
                         <button
                           className="icon-button"
                           type="button"
@@ -957,16 +1096,30 @@ export default function UpdatesBoard({
                           Reply
                         </button>
                       </div>
-                      <div>{root.body}</div>
+                      <div className="comment-body">{root.body}</div>
                       {replies.length > 0 && (
                         <div className="comment-replies">
                           {replies.map((reply) => (
                             <div key={reply.id} className="comment-reply">
                               <div className="comment-meta">
-                                <span>{reply.author_name || "Anonymous"}</span>
-                                <span>{formatDate(reply.created_at)}</span>
+                                <span className="comment-head">
+                                  <span className="comment-avatar reply">
+                                    {getInitials(
+                                      reply.author_name || "Anonymous",
+                                    )}
+                                  </span>
+                                  <span className="comment-author-name">
+                                    {reply.author_name || "Anonymous"}
+                                  </span>
+                                  <span className="comment-type-badge reply">
+                                    Reply
+                                  </span>
+                                </span>
+                                <span className="comment-time">
+                                  {formatDate(reply.created_at)}
+                                </span>
                               </div>
-                              <div>{reply.body}</div>
+                              <div className="comment-body">{reply.body}</div>
                             </div>
                           ))}
                         </div>
@@ -1040,7 +1193,7 @@ export default function UpdatesBoard({
       </div>
       <Dialog
         open={createOpen}
-        title="Create new update"
+        title="Create new post"
         onClose={() => setCreateOpen(false)}
         footer={
           <div className="form-actions">
@@ -1052,7 +1205,11 @@ export default function UpdatesBoard({
               Cancel
             </Button>
             <Button type="submit" form="create-update-form" disabled={saving}>
-              {saving ? "Saving..." : "Publish update"}
+              {saving ? (
+                <PawLoader label="Saving" size="sm" />
+              ) : (
+                "Publish update"
+              )}
             </Button>
           </div>
         }
@@ -1228,7 +1385,11 @@ export default function UpdatesBoard({
               form="edit-update-form"
               disabled={actionLoading}
             >
-              {actionLoading ? "Saving..." : "Save changes"}
+              {actionLoading ? (
+                <PawLoader label="Saving" size="sm" />
+              ) : (
+                "Save changes"
+              )}
             </Button>
           </div>
         }
@@ -1350,6 +1511,59 @@ export default function UpdatesBoard({
               />
             </label>
 
+            {editExistingImages.length > 0 && (
+              <div className="form-grid">
+                <label>Existing images</label>
+                <div
+                  className="grid-list"
+                  style={{
+                    gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))",
+                    gap: "10px",
+                  }}
+                >
+                  {editExistingImages.map((image) => {
+                    const marked = removedImageIds.has(image.id);
+                    const imageSrc = image.url.startsWith("/uploads/")
+                      ? `${DEFAULT_API_ROOT}${image.url}`
+                      : image.url;
+                    return (
+                      <div
+                        key={image.id}
+                        style={{
+                          position: "relative",
+                          borderRadius: "8px",
+                          overflow: "hidden",
+                          border: marked
+                            ? "2px solid rgba(176,0,32,0.5)"
+                            : "1px solid rgba(31, 92, 74, 0.2)",
+                          opacity: marked ? 0.55 : 1,
+                        }}
+                      >
+                        <img
+                          src={imageSrc}
+                          alt="Existing upload"
+                          style={{
+                            width: "100%",
+                            height: "120px",
+                            objectFit: "cover",
+                            display: "block",
+                          }}
+                        />
+                        <button
+                          type="button"
+                          className="btn btn-danger btn-sm"
+                          style={{ position: "absolute", top: 6, right: 6 }}
+                          onClick={() => toggleRemoveExistingImage(image.id)}
+                        >
+                          {marked ? "Undo" : "Remove"}
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
             {editPreviewUrls.length > 0 && (
               <MediaGrid
                 items={editPreviewUrls.map((src, index) => ({
@@ -1384,7 +1598,11 @@ export default function UpdatesBoard({
               onClick={handleDelete}
               disabled={actionLoading}
             >
-              {actionLoading ? "Deleting..." : "Delete"}
+              {actionLoading ? (
+                <PawLoader label="Deleting" size="sm" />
+              ) : (
+                "Delete"
+              )}
             </Button>
           </div>
         }

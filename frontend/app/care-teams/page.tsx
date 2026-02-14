@@ -5,7 +5,9 @@ import Button from "../components/Button";
 import Dialog from "../components/Dialog";
 import Dropdown from "../components/Dropdown";
 import MainNav from "../components/MainNav";
+import PawLoader from "../components/PawLoader";
 import SiteFooter from "../components/SiteFooter";
+import { getAuthToken, getAuthUser } from "../lib/auth";
 
 type CareTeamMember = {
   id: string;
@@ -77,6 +79,26 @@ export default function CareTeamsPage() {
   const [editPhotoUrl, setEditPhotoUrl] = useState("");
   const [editAvatarChoice, setEditAvatarChoice] = useState("");
   const [actionLoading, setActionLoading] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  useEffect(() => {
+    const user = getAuthUser();
+    setIsAdmin((user?.role || "").toLowerCase() === "admin");
+  }, []);
+
+  function requireAdminToken() {
+    const token = getAuthToken();
+    if (!token) {
+      setError("Please login as admin.");
+      window.location.href = "/login";
+      return null;
+    }
+    if (!isAdmin) {
+      setError("Admin role required for this action.");
+      return null;
+    }
+    return token;
+  }
 
   async function fetchMembers() {
     setLoading(true);
@@ -117,9 +139,15 @@ export default function CareTeamsPage() {
     setSaving(true);
     setError(null);
     try {
+      const token = requireAdminToken();
+      if (!token) return;
+
       const res = await fetch(`${API_BASE}/care-team`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
         body: JSON.stringify({
           name: name.trim(),
           role: role.trim(),
@@ -173,9 +201,15 @@ export default function CareTeamsPage() {
     setActionLoading(true);
     setError(null);
     try {
+      const token = requireAdminToken();
+      if (!token) return;
+
       const res = await fetch(`${API_BASE}/care-team/${activeMember.id}`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
         body: JSON.stringify({
           name: editName.trim() || undefined,
           role: editRole.trim() || undefined,
@@ -212,8 +246,12 @@ export default function CareTeamsPage() {
     setActionLoading(true);
     setError(null);
     try {
+      const token = requireAdminToken();
+      if (!token) return;
+
       const res = await fetch(`${API_BASE}/care-team/${activeMember.id}`, {
         method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
       });
       if (!res.ok) {
         throw new Error(`Failed to delete member (${res.status})`);
@@ -269,11 +307,19 @@ export default function CareTeamsPage() {
               contact details.
             </p>
             <div className="hero-actions">
-              <Button type="button" onClick={() => setCreateOpen(true)}>
+              <Button
+                type="button"
+                onClick={() => setCreateOpen(true)}
+                disabled={!isAdmin}
+              >
                 Add team member
               </Button>
               <Button variant="ghost" type="button" onClick={fetchMembers}>
-                {loading ? "Refreshing..." : "Refresh"}
+                {loading ? (
+                  <PawLoader label="Refreshing" size="sm" />
+                ) : (
+                  "Refresh"
+                )}
               </Button>
             </div>
           </div>
@@ -327,7 +373,9 @@ export default function CareTeamsPage() {
               </label>
             </div>
           </div>
-          {loading && members.length === 0 && <p>Loading...</p>}
+          {loading && members.length === 0 && (
+            <PawLoader label="Loading team" size="lg" />
+          )}
           {error && <p className="error">{error}</p>}
           <div className="grid-list">
             {filteredMembers.map((member) => (
@@ -364,6 +412,7 @@ export default function CareTeamsPage() {
                     size="sm"
                     type="button"
                     onClick={() => openEdit(member)}
+                    disabled={!isAdmin}
                   >
                     Edit
                   </Button>
@@ -372,6 +421,7 @@ export default function CareTeamsPage() {
                     size="sm"
                     type="button"
                     onClick={() => openDelete(member)}
+                    disabled={!isAdmin}
                   >
                     Delete
                   </Button>
@@ -396,7 +446,7 @@ export default function CareTeamsPage() {
               Cancel
             </Button>
             <Button type="submit" form="create-member-form" disabled={saving}>
-              {saving ? "Saving..." : "Add member"}
+              {saving ? <PawLoader label="Saving" size="sm" /> : "Add member"}
             </Button>
           </div>
         }
@@ -501,7 +551,11 @@ export default function CareTeamsPage() {
               form="edit-member-form"
               disabled={actionLoading}
             >
-              {actionLoading ? "Saving..." : "Save changes"}
+              {actionLoading ? (
+                <PawLoader label="Saving" size="sm" />
+              ) : (
+                "Save changes"
+              )}
             </Button>
           </div>
         }
@@ -605,7 +659,11 @@ export default function CareTeamsPage() {
               onClick={handleDelete}
               disabled={actionLoading}
             >
-              {actionLoading ? "Deleting..." : "Delete"}
+              {actionLoading ? (
+                <PawLoader label="Deleting" size="sm" />
+              ) : (
+                "Delete"
+              )}
             </Button>
           </div>
         }

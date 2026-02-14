@@ -56,4 +56,9 @@ class CommunityPost(Base):
         back_populates="post",
         cascade="all, delete-orphan",
     )
+    reactions = relationship(
+        "CommunityPostReaction",
+        back_populates="post",
+        cascade="all, delete-orphan",
+    )
 

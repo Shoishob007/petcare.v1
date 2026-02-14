@@ -71,5 +71,10 @@ class Report(Base):
         back_populates="report",
         cascade="all, delete-orphan",
     )
+    reactions = relationship(
+        "ReportReaction",
+        back_populates="report",
+        cascade="all, delete-orphan",
+    )
     reporters = relationship("User", secondary=user_reports, back_populates="reports")
 

@@ -14,6 +14,7 @@ class User(Base):
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     email = Column(String, unique=True, nullable=False, index=True)
     password = Column(String, nullable=False)
+    role = Column(String, nullable=False, default="user", index=True)
     
     # Profile Information
     first_name = Column(String, nullable=True)
@@ -56,6 +57,10 @@ class User(Base):
     reports = relationship("Report", secondary="user_reports", back_populates="reporters")
     community_posts = relationship("CommunityPost", back_populates="author", cascade="all, delete-orphan")
     sicknesses = relationship("Sickness", back_populates="reported_by", cascade="all, delete-orphan")
+    report_comments = relationship("ReportComment", back_populates="user")
+    community_post_comments = relationship("CommunityPostComment", back_populates="user")
+    report_reactions = relationship("ReportReaction", back_populates="user", cascade="all, delete-orphan")
+    community_post_reactions = relationship("CommunityPostReaction", back_populates="user", cascade="all, delete-orphan")
 
 
 class Pet(Base):

@@ -12,9 +12,11 @@ class ReportComment(Base):
 
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     report_id = Column(String, ForeignKey("reports.id"), nullable=False, index=True)
+    user_id = Column(String, ForeignKey("users.id"), nullable=True, index=True)
     parent_id = Column(String, ForeignKey("report_comments.id"), nullable=True)
     author_name = Column(String, nullable=True)
     body = Column(String, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
 
     report = relationship("Report", back_populates="comments")
+    user = relationship("User", back_populates="report_comments")

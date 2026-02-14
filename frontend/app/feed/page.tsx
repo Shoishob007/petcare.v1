@@ -13,7 +13,7 @@ export default function FeedPage() {
         <header className="community-hero">
           <div className="community-hero-content">
             <div>
-              <p className="eyebrow">Unified updates hub</p>
+              <p className="eyebrow">All posts hub</p>
               <h1>Reports and community posts in one powerful stream.</h1>
               <p className="subtext">
                 Create, filter, react, comment, and manage everything from one
@@ -26,7 +26,7 @@ export default function FeedPage() {
         <div id="updates-board">
           <UpdatesBoard
             defaultType="all"
-            title="Unified community and reports board"
+            title="Browse your feed"
             subtitle="One feature-rich container for reports, community updates, reactions, comments, edits, and media uploads."
           />
         </div>
