@@ -1,11 +1,11 @@
 import { MEDIA } from "./media";
 
 export const NAV_LINKS = [
-  { label: "Feed", href: "/feed" },
-  { label: "Reports", href: "/reports" },
+  { label: "Updates", href: "/feed" },
+  { label: "Reports + Community", href: "/feed" },
   { label: "Sickness Guide", href: "/sickness" },
   { label: "Care Teams", href: "/care-teams" },
-  { label: "Community", href: "/community" },
+  { label: "Community", href: "/feed" },
 ];
 
 export const SECTION_CONTENT = {
@@ -47,7 +47,7 @@ export const SECTION_CONTENT = {
       ],
     },
     ctaLabel: "Open a report",
-    ctaHref: "/reports#report-form",
+    ctaHref: "/feed#updates-board",
     media: {
       hero: MEDIA.hero,
       cardOne: MEDIA.cardOne,
@@ -76,8 +76,7 @@ export const SECTION_CONTENT = {
       },
       {
         title: "Clear updates",
-        description:
-          "Post quick notes to keep shifts and routines consistent.",
+        description: "Post quick notes to keep shifts and routines consistent.",
       },
       {
         title: "Trusted partners",
@@ -96,7 +95,7 @@ export const SECTION_CONTENT = {
       ],
     },
     ctaLabel: "Start a report",
-    ctaHref: "/reports",
+    ctaHref: "/feed",
     media: {
       hero: MEDIA.hero,
       cardOne: MEDIA.cardOne,
@@ -125,8 +124,7 @@ export const SECTION_CONTENT = {
       },
       {
         title: "Supportive network",
-        description:
-          "Bring people together with clear, consistent messaging.",
+        description: "Bring people together with clear, consistent messaging.",
       },
       {
         title: "Actionable posts",
@@ -145,7 +143,7 @@ export const SECTION_CONTENT = {
       ],
     },
     ctaLabel: "Browse reports",
-    ctaHref: "/reports",
+    ctaHref: "/feed",
     media: {
       hero: MEDIA.hero,
       cardOne: MEDIA.cardOne,

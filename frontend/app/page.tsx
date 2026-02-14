@@ -94,9 +94,9 @@ export default function Home() {
               </p>
 
               <div className="flex flex-col sm:flex-row gap-4">
-                <Link href="/reports">
+                <Link href="/feed#updates-board">
                   <Button size="lg" className="w-full sm:w-auto">
-                    Create Your First Report
+                    Create Your First Update
                     <ArrowRight className="ml-2 w-4 h-4" />
                   </Button>
                 </Link>
@@ -206,12 +206,12 @@ export default function Home() {
           </div>
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link href="/reports">
-              <Button size="lg">Create a Report</Button>
+            <Link href="/feed#updates-board">
+              <Button size="lg">Create an Update</Button>
             </Link>
-            <Link href="/community">
+            <Link href="/feed">
               <Button size="lg" variant="outline">
-                Browse Community
+                Browse Updates
               </Button>
             </Link>
           </div>

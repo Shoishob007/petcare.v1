@@ -120,8 +120,8 @@ export default function SectionPage({
               updates, and care coordination.
             </p>
           </div>
-          <Link className="primary" href="/reports">
-            Open a report
+          <Link className="primary" href="/feed#updates-board">
+            Open updates
           </Link>
         </section>
       </div>

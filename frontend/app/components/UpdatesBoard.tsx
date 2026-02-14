@@ -50,8 +50,39 @@ type UpdatesBoardProps = {
   subtitle?: string;
 };
 
-const API_ROOT = "http://127.0.0.1:8000";
-const API_BASE = `${API_ROOT}/api/v1`;
+const API_ROOTS = [
+  process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "") ||
+    "http://localhost:8000",
+  "http://127.0.0.1:8000",
+  "http://localhost:8000",
+].filter((root, index, arr) => Boolean(root) && arr.indexOf(root) === index);
+
+const DEFAULT_API_ROOT = API_ROOTS[0] || "http://localhost:8000";
+
+async function fetchWithApiFallback(
+  path: string,
+  init?: RequestInit,
+): Promise<Response> {
+  let lastError: Error | null = null;
+
+  for (const root of API_ROOTS) {
+    try {
+      const res = await fetch(`${root}/api/v1${path}`, init);
+      if (res.ok) {
+        return res;
+      }
+      if (res.status >= 500) {
+        lastError = new Error(`Request failed (${res.status})`);
+        continue;
+      }
+      return res;
+    } catch (e) {
+      lastError = e instanceof Error ? e : new Error("Network request failed");
+    }
+  }
+
+  throw lastError || new Error("Unable to reach backend API");
+}
 
 const REPORT_CATEGORIES = ["Lost", "Found", "Sighting", "Health", "Care"];
 const COMMUNITY_CATEGORIES = [
@@ -203,7 +234,7 @@ export default function UpdatesBoard({
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`${API_BASE}/updates`, { cache: "no-store" });
+      const res = await fetchWithApiFallback(`/updates`, { cache: "no-store" });
       if (!res.ok) {
         throw new Error(`Failed to load updates (${res.status})`);
       }
@@ -233,8 +264,8 @@ export default function UpdatesBoard({
     if (selected.length === 0) return [];
     const formData = new FormData();
     selected.forEach((file) => formData.append("files", file));
-    const res = await fetch(
-      `${API_BASE}/updates/${itemType}/${itemId}/images`,
+    const res = await fetchWithApiFallback(
+      `/updates/${itemType}/${itemId}/images`,
       {
         method: "POST",
         body: formData,
@@ -272,14 +303,15 @@ export default function UpdatesBoard({
           draftType === "community"
             ? authorNameDraft.trim() || undefined
             : undefined,
-        tags: draftType === "community" ? tagsDraft.trim() || undefined : undefined,
+        tags:
+          draftType === "community" ? tagsDraft.trim() || undefined : undefined,
         image_url:
           draftType === "community"
             ? imageUrlDraft.trim() || undefined
             : undefined,
       };
 
-      const res = await fetch(`${API_BASE}/updates`, {
+      const res = await fetchWithApiFallback(`/updates`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -375,8 +407,8 @@ export default function UpdatesBoard({
             : undefined,
       };
 
-      const res = await fetch(
-        `${API_BASE}/updates/${activeItem.item_type}/${activeItem.id}`,
+      const res = await fetchWithApiFallback(
+        `/updates/${activeItem.item_type}/${activeItem.id}`,
         {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
@@ -396,7 +428,9 @@ export default function UpdatesBoard({
         updated = { ...updated, images: uploaded };
       }
       setItems((prev) =>
-        prev.map((item) => (itemKey(item) === itemKey(updated) ? updated : item)),
+        prev.map((item) =>
+          itemKey(item) === itemKey(updated) ? updated : item,
+        ),
       );
       setEditOpen(false);
       toast.success("Update saved successfully!");
@@ -419,8 +453,8 @@ export default function UpdatesBoard({
     setActionLoading(true);
     setFormError(null);
     try {
-      const res = await fetch(
-        `${API_BASE}/updates/${activeItem.item_type}/${activeItem.id}`,
+      const res = await fetchWithApiFallback(
+        `/updates/${activeItem.item_type}/${activeItem.id}`,
         { method: "DELETE" },
       );
       if (!res.ok) {
@@ -445,8 +479,8 @@ export default function UpdatesBoard({
     const isLiked = likedItems.has(key);
 
     try {
-      const res = await fetch(
-        `${API_BASE}/updates/${item.item_type}/${item.id}/reactions`,
+      const res = await fetchWithApiFallback(
+        `/updates/${item.item_type}/${item.id}/reactions`,
         { method: "POST" },
       );
       if (!res.ok) {
@@ -477,8 +511,8 @@ export default function UpdatesBoard({
   }
 
   async function fetchComments(item: UpdateItem) {
-    const res = await fetch(
-      `${API_BASE}/updates/${item.item_type}/${item.id}/comments`,
+    const res = await fetchWithApiFallback(
+      `/updates/${item.item_type}/${item.id}/comments`,
       { cache: "no-store" },
     );
     if (!res.ok) {
@@ -513,8 +547,8 @@ export default function UpdatesBoard({
     const draft = parentId ? replyDraft[draftKey] : commentDraft[key];
     if (!draft?.trim()) return;
     try {
-      const res = await fetch(
-        `${API_BASE}/updates/${item.item_type}/${item.id}/comments`,
+      const res = await fetchWithApiFallback(
+        `/updates/${item.item_type}/${item.id}/comments`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -593,7 +627,9 @@ export default function UpdatesBoard({
   }, [editFiles, editImageUrl, activeItem]);
 
   const stats = useMemo(() => {
-    const reportCount = items.filter((item) => item.item_type === "report").length;
+    const reportCount = items.filter(
+      (item) => item.item_type === "report",
+    ).length;
     const communityCount = items.filter(
       (item) => item.item_type === "community",
     ).length;
@@ -627,20 +663,15 @@ export default function UpdatesBoard({
       } ${item.tags || ""}`.toLowerCase();
       return haystack.includes(normalized);
     });
-  }, [
-    items,
-    typeFilter,
-    categoryFilter,
-    statusFilter,
-    urgencyFilter,
-    query,
-  ]);
+  }, [items, typeFilter, categoryFilter, statusFilter, urgencyFilter, query]);
 
   const categoryOptionsForDraft =
     draftType === "report" ? REPORT_CATEGORIES : COMMUNITY_CATEGORIES;
 
   const categoryOptionsForEdit =
-    activeItem?.item_type === "report" ? REPORT_CATEGORIES : COMMUNITY_CATEGORIES;
+    activeItem?.item_type === "report"
+      ? REPORT_CATEGORIES
+      : COMMUNITY_CATEGORIES;
 
   return (
     <section className="panel panel-spaced updates-board">
@@ -699,19 +730,13 @@ export default function UpdatesBoard({
           label=""
           value={statusFilter}
           onChange={setStatusFilter}
-          options={[
-            { label: "All status", value: "all" },
-            ...STATUS_OPTIONS,
-          ]}
+          options={[{ label: "All status", value: "all" }, ...STATUS_OPTIONS]}
         />
         <Dropdown
           label=""
           value={urgencyFilter}
           onChange={setUrgencyFilter}
-          options={[
-            { label: "All urgency", value: "all" },
-            ...URGENCY_OPTIONS,
-          ]}
+          options={[{ label: "All urgency", value: "all" }, ...URGENCY_OPTIONS]}
         />
         <input
           value={query}
@@ -736,13 +761,15 @@ export default function UpdatesBoard({
           const key = itemKey(item);
           const itemComments = commentsByItem[key] || [];
           const isCommentsOpen = commentsOpen[key];
-          const replyKey = replyTarget[key] ? `${key}:${replyTarget[key]}` : key;
+          const replyKey = replyTarget[key]
+            ? `${key}:${replyTarget[key]}`
+            : key;
           const threads = buildThreads(itemComments);
           const tags = parseTags(item.tags);
           const mediaItems = item.images?.length
             ? item.images.map((image) => ({
                 id: image.id,
-                src: `${API_ROOT}${image.url}`,
+                src: `${DEFAULT_API_ROOT}${image.url}`,
                 alt: item.title,
               }))
             : item.image_url
@@ -750,7 +777,7 @@ export default function UpdatesBoard({
                   {
                     id: `${item.id}-image`,
                     src: item.image_url.startsWith("/uploads/")
-                      ? `${API_ROOT}${item.image_url}`
+                      ? `${DEFAULT_API_ROOT}${item.image_url}`
                       : item.image_url,
                     alt: item.title,
                   },
@@ -768,17 +795,23 @@ export default function UpdatesBoard({
             >
               <div className="social-header">
                 <div className="social-author">
-                  <div className="social-avatar">{getInitials(displayName)}</div>
+                  <div className="social-avatar">
+                    {getInitials(displayName)}
+                  </div>
                   <div className="social-author-meta">
                     <div className="social-name">{displayName}</div>
-                    <div className="social-meta">{formatDate(item.created_at)}</div>
+                    <div className="social-meta">
+                      {formatDate(item.created_at)}
+                    </div>
                   </div>
                 </div>
                 <div className="update-pill-row">
                   <span className={`update-pill update-pill-${item.item_type}`}>
                     {item.item_type === "report" ? "Report" : "Community"}
                   </span>
-                  {item.category && <span className="pill">{item.category}</span>}
+                  {item.category && (
+                    <span className="pill">{item.category}</span>
+                  )}
                   {item.item_type === "report" && item.status && (
                     <span className="pill">{formatLabel(item.status)}</span>
                   )}
@@ -1166,7 +1199,9 @@ export default function UpdatesBoard({
             <MediaGrid
               items={previewUrls.map((src, index) => ({
                 id: `${src}-${index}`,
-                src: src.startsWith("/uploads/") ? `${API_ROOT}${src}` : src,
+                src: src.startsWith("/uploads/")
+                  ? `${DEFAULT_API_ROOT}${src}`
+                  : src,
                 alt: "Preview",
               }))}
             />
@@ -1188,7 +1223,11 @@ export default function UpdatesBoard({
             >
               Cancel
             </Button>
-            <Button type="submit" form="edit-update-form" disabled={actionLoading}>
+            <Button
+              type="submit"
+              form="edit-update-form"
+              disabled={actionLoading}
+            >
               {actionLoading ? "Saving..." : "Save changes"}
             </Button>
           </div>
@@ -1315,7 +1354,9 @@ export default function UpdatesBoard({
               <MediaGrid
                 items={editPreviewUrls.map((src, index) => ({
                   id: `${src}-${index}`,
-                  src: src.startsWith("/uploads/") ? `${API_ROOT}${src}` : src,
+                  src: src.startsWith("/uploads/")
+                    ? `${DEFAULT_API_ROOT}${src}`
+                    : src,
                   alt: "Preview",
                 }))}
               />

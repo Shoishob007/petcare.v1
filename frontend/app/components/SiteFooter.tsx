@@ -6,8 +6,8 @@ export default function SiteFooter() {
     {
       section: "Product",
       links: [
-        { label: "Reports", href: "/reports" },
-        { label: "Community", href: "/community" },
+        { label: "Updates", href: "/feed" },
+        { label: "Reports + Community", href: "/feed" },
         { label: "Pet Health", href: "/sickness" },
         { label: "Care Teams", href: "/care-teams" },
       ],
@@ -15,9 +15,9 @@ export default function SiteFooter() {
     {
       section: "Resources",
       links: [
-        { label: "Pet Care Tips", href: "/community" },
+        { label: "Pet Care Tips", href: "/feed" },
         { label: "Health Guide", href: "/sickness" },
-        { label: "Safety", href: "/reports" },
+        { label: "Safety", href: "/feed" },
         { label: "FAQ", href: "#" },
       ],
     },

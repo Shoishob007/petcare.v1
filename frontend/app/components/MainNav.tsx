@@ -8,18 +8,11 @@ import {
   Heart,
   MessageCircle,
   Home,
-  Users,
   Activity,
-  AlertTriangle,
   Dog, // Using Dog instead of PawPrint
 } from "lucide-react";
 import { Button } from "./ui/button";
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-} from "./ui/sheet";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "./ui/sheet";
 
 export default function MainNav() {
   const [open, setOpen] = useState(false);
@@ -27,15 +20,15 @@ export default function MainNav() {
 
   const navigationItems = [
     { href: "/", label: "Home", icon: Home },
-    { href: "/feed", label: "Feed", icon: MessageCircle },
-    { href: "/community", label: "Community", icon: Users },
+    { href: "/feed", label: "Updates", icon: MessageCircle },
     { href: "/sickness", label: "Pet Health", icon: Activity },
-    { href: "/reports", label: "Reports", icon: AlertTriangle },
     { href: "/care-teams", label: "Care Teams", icon: Heart },
   ];
 
   const getIconColor = (isActive: boolean) => {
-    return isActive ? "text-primary" : "text-muted-foreground group-hover:text-foreground";
+    return isActive
+      ? "text-primary"
+      : "text-muted-foreground group-hover:text-foreground";
   };
 
   return (
@@ -81,10 +74,9 @@ export default function MainNav() {
 
         {/* Desktop Actions */}
         <div className="hidden md:flex items-center gap-2">
-          <Link href="/reports">
+          <Link href="/feed">
             <Button variant="default" size="sm" className="group">
-              {/* <AlertTriangle className="w-4 h-4 mr-2 group-hover:animate-pulse" /> */}
-              Start Report
+              New update
             </Button>
           </Link>
         </div>
@@ -135,17 +127,16 @@ export default function MainNav() {
 
             <div className="border-t px-6 py-4">
               <Link
-                href="/reports"
+                href="/feed"
                 onClick={() => setOpen(false)}
                 className="w-full block"
               >
                 <Button className="w-full mb-2 group" variant="default">
-                  <AlertTriangle className="w-4 h-4 mr-2 group-hover:animate-pulse" />
-                  Start a Report
+                  New update
                 </Button>
               </Link>
               <p className="text-xs text-muted-foreground text-center">
-                Help your community by reporting pet-related issues
+                Manage reports and community posts from one place
               </p>
             </div>
           </SheetContent>
