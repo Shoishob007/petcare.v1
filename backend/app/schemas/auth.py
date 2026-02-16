@@ -30,6 +30,7 @@ class AuthProfileUpdateRequest(BaseModel):
     city: str | None = None
     country: str | None = None
     bio: str | None = None
+    profile_image_url: str | None = None
     is_pet_caregiver: bool | None = None
     is_veterinarian: bool | None = None
     specializations: str | None = None
@@ -55,6 +56,7 @@ class AuthUserResponse(BaseModel):
     city: str | None = None
     country: str | None = None
     bio: str | None = None
+    profile_image_url: str | None = None
     is_pet_caregiver: bool
     is_veterinarian: bool
     specializations: str | None = None

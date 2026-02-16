@@ -1,12 +1,13 @@
 import Link from "next/link";
 import { Heart, Mail, Smartphone } from "lucide-react";
+import BrandMark from "./BrandMark";
 
 export default function SiteFooter() {
   const footerLinks = [
     {
       section: "Product",
       links: [
-        { label: "Updates", href: "/feed" },
+        { label: "Feed", href: "/feed" },
         { label: "Reports + Community", href: "/feed" },
         { label: "Pet Health", href: "/sickness" },
         { label: "Care Teams", href: "/care-teams" },
@@ -37,14 +38,10 @@ export default function SiteFooter() {
   return (
     <footer className="bg-muted/50 border-t border-border mt-auto">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Main Footer Content */}
         <div className="py-12 grid grid-cols-1 md:grid-cols-4 gap-8">
-          {/* Brand Section */}
           <div className="space-y-4">
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-green-600 to-green-800 flex items-center justify-center text-white text-sm font-bold">
-                🐾
-              </div>
+              <BrandMark size="md" />
               <span className="font-bold text-lg">PetCare Hub</span>
             </div>
             <p className="text-sm text-muted-foreground">
@@ -59,7 +56,6 @@ export default function SiteFooter() {
             </div>
           </div>
 
-          {/* Footer Links */}
           {footerLinks.map((column) => (
             <div key={column.section} className="space-y-4">
               <h3 className="font-semibold text-sm">{column.section}</h3>
@@ -79,7 +75,6 @@ export default function SiteFooter() {
           ))}
         </div>
 
-        {/* Contact & Bottom Section */}
         <div className="py-8 border-t border-border space-y-4 sm:space-y-0">
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
             <div className="flex items-center gap-4 text-sm text-muted-foreground">
@@ -94,13 +89,9 @@ export default function SiteFooter() {
               </div>
             </div>
 
-            {/* Copyright */}
             <div className="text-center sm:text-right text-xs text-muted-foreground space-y-1 sm:space-y-0">
               <p>© {currentYear} PetCare Hub. All rights reserved.</p>
-              <p>
-                Built with Nextjs, FastAPI, and ❤️ for pet communities
-                worldwide.
-              </p>
+              <p>Built with Nextjs, FastAPI, and love for pet communities worldwide.</p>
             </div>
           </div>
         </div>

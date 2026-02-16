@@ -9,30 +9,44 @@ import {
   MessageCircle,
   Home,
   Activity,
-  Dog, // Using Dog instead of PawPrint
+  LogOut,
+  User,
+  Users,
 } from "lucide-react";
 import { Button } from "./ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "./ui/sheet";
-import Dropdown from "./Dropdown";
-import { clearAuthSession, getAuthUser } from "../lib/auth";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "./ui/dropdown-menu";
+import { clearAuthSession, getAuthUser, type AuthUser } from "../lib/auth";
+import { Avatar } from "./shared/Avatar";
+import BrandMark from "./BrandMark";
 
 export default function MainNav() {
   const [open, setOpen] = useState(false);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [userRole, setUserRole] = useState<string>("user");
-  const [userMenuAction, setUserMenuAction] = useState("");
-  const [mobileUserMenuAction, setMobileUserMenuAction] = useState("");
+  const [user, setUser] = useState<AuthUser | null>(null);
   const pathname = usePathname();
 
   useEffect(() => {
-    const user = getAuthUser();
-    setIsAuthenticated(Boolean(user));
-    setUserRole((user?.role || "user").toLowerCase());
+    const authUser = getAuthUser();
+    setUser(authUser);
   }, [pathname]);
+
+  const isAuthenticated = Boolean(user);
+  const userRole = (user?.role || "user").toLowerCase();
+  const fullName = `${user?.first_name || ""} ${user?.last_name || ""}`.trim();
+  const userDisplayName = fullName || user?.username || user?.email || "User";
+  const userImage =
+    user?.profile_image_url || user?.avatar_url || user?.image_url || undefined;
 
   const navigationItems = [
     { href: "/", label: "Home", icon: Home },
-    { href: "/feed", label: "Updates", icon: MessageCircle },
+    { href: "/feed", label: "Feed", icon: MessageCircle },
     { href: "/sickness", label: "Pet Health", icon: Activity },
     { href: "/care-teams", label: "Care Teams", icon: Heart },
   ];
@@ -43,18 +57,7 @@ export default function MainNav() {
       : "text-muted-foreground group-hover:text-foreground";
   };
 
-  const userMenuOptions = [
-    { label: "Account", value: "account" },
-    ...(userRole === "admin" ? [{ label: "Users", value: "users" }] : []),
-    { label: "Logout", value: "logout" },
-  ];
-
-  function handleUserMenuSelection(value: string, isMobile = false) {
-    if (isMobile) {
-      setMobileUserMenuAction("");
-    } else {
-      setUserMenuAction("");
-    }
+  function handleUserMenuSelection(value: string) {
     if (!value) return;
 
     if (value === "account") {
@@ -73,15 +76,13 @@ export default function MainNav() {
 
   return (
     <nav className="sticky top-0 z-40 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="container flex h-14 items-center justify-between px-4 md:px-6">
+      <div className="flex h-14 items-center justify-between px-4 md:px-6">
         {/* Logo */}
         <Link
           href="/"
           className="flex items-center gap-2 font-bold text-lg md:text-xl group"
         >
-          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-green-600 to-green-800 flex items-center justify-center text-white">
-            <Dog className="w-4 h-4" />
-          </div>
+          <BrandMark size="md" />
           <span className="hidden sm:inline group-hover:text-primary transition-colors">
             PetCare Hub
           </span>
@@ -114,21 +115,47 @@ export default function MainNav() {
 
         {/* Desktop Actions */}
         <div className="hidden md:flex items-center gap-2">
-          {isAuthenticated && (
-            <span className="text-xs text-muted-foreground uppercase tracking-wide px-2">
-              {userRole}
-            </span>
-          )}
           {isAuthenticated ? (
-            <div className="min-w-[180px]">
-              <Dropdown
-                label=""
-                value={userMenuAction}
-                onChange={(value) => handleUserMenuSelection(value, false)}
-                options={userMenuOptions}
-                placeholder="Account menu"
-              />
-            </div>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  type="button"
+                  className="inline-flex items-center justify-center rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                  aria-label="Open account menu"
+                >
+                  <Avatar
+                    src={userImage}
+                    name={userDisplayName}
+                    size="sm"
+                    className="ring-2 ring-primary/20 shadow-sm"
+                  />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-52">
+                <DropdownMenuLabel>
+                  <p className="font-semibold leading-tight">{userDisplayName}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5 uppercase tracking-wide">
+                    {userRole}
+                  </p>
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onSelect={() => handleUserMenuSelection("account")}>
+                  <User className="h-4 w-4" />
+                  Account
+                </DropdownMenuItem>
+                {userRole === "admin" ? (
+                  <DropdownMenuItem onSelect={() => handleUserMenuSelection("users")}>
+                    <Users className="h-4 w-4" />
+                    Users
+                  </DropdownMenuItem>
+                ) : null}
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onSelect={() => handleUserMenuSelection("logout")}>
+                  <LogOut className="h-4 w-4" />
+                  Logout
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           ) : (
             <>
               <Link href="/register">
@@ -159,7 +186,7 @@ export default function MainNav() {
           <SheetContent side="left" className="w-full sm:w-80 p-0">
             <SheetHeader className="border-b px-6 py-4">
               <SheetTitle className="text-xl font-bold flex items-center gap-2">
-                <Dog className="w-5 h-5 text-primary" />
+                <BrandMark size="sm" />
                 Menu
               </SheetTitle>
             </SheetHeader>
@@ -191,17 +218,58 @@ export default function MainNav() {
 
             <div className="border-t px-6 py-4">
               {isAuthenticated && (
-                <div className="mb-3">
-                  <Dropdown
-                    label=""
-                    value={mobileUserMenuAction}
-                    onChange={(value) => {
-                      setOpen(false);
-                      handleUserMenuSelection(value, true);
-                    }}
-                    options={userMenuOptions}
-                    placeholder="Account menu"
-                  />
+                <div className="mb-4 rounded-xl border border-border bg-card/70 p-3">
+                  <div className="flex items-center gap-3">
+                    <Avatar
+                      src={userImage}
+                      name={userDisplayName}
+                      size="md"
+                      className="ring-2 ring-primary/20 shadow-sm"
+                    />
+                    <div>
+                      <p className="text-sm font-semibold leading-tight">{userDisplayName}</p>
+                      <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                        {userRole}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="mt-3 space-y-2">
+                    <Button
+                      className="w-full justify-start"
+                      variant="outline"
+                      onClick={() => {
+                        setOpen(false);
+                        handleUserMenuSelection("account");
+                      }}
+                    >
+                      <User className="mr-2 h-4 w-4" />
+                      Account
+                    </Button>
+                    {userRole === "admin" ? (
+                      <Button
+                        className="w-full justify-start"
+                        variant="outline"
+                        onClick={() => {
+                          setOpen(false);
+                          handleUserMenuSelection("users");
+                        }}
+                      >
+                        <Users className="mr-2 h-4 w-4" />
+                        Users
+                      </Button>
+                    ) : null}
+                    <Button
+                      className="w-full justify-start"
+                      variant="ghost"
+                      onClick={() => {
+                        setOpen(false);
+                        handleUserMenuSelection("logout");
+                      }}
+                    >
+                      <LogOut className="mr-2 h-4 w-4" />
+                      Logout
+                    </Button>
+                  </div>
                 </div>
               )}
               <div className="mt-3">

@@ -35,7 +35,7 @@ export default function Home() {
     },
     {
       icon: MessageSquare,
-      title: "Real-time Updates",
+      title: "Real-time Feed",
       description:
         "Comment, react, and get instant notifications when there's activity on your posts.",
     },
@@ -96,7 +96,7 @@ export default function Home() {
               <div className="flex flex-col sm:flex-row gap-4">
                 <Link href="/feed#updates-board">
                   <Button size="lg" className="w-full sm:w-auto">
-                    Create Your First Update
+                    Create Your First Post
                     <ArrowRight className="ml-2 w-4 h-4" />
                   </Button>
                 </Link>
@@ -207,11 +207,11 @@ export default function Home() {
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link href="/feed#updates-board">
-              <Button size="lg">Create an Update</Button>
+              <Button size="lg">Create a Post</Button>
             </Link>
             <Link href="/feed">
               <Button size="lg" variant="outline">
-                Browse Updates
+                Browse Feed
               </Button>
             </Link>
           </div>

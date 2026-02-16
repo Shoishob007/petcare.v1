@@ -165,7 +165,7 @@ const getCategoryOptions = (items: UpdateItem[]) => {
 export default function UpdatesBoard({
   defaultType = "all",
   title = "Browse your feed",
-  subtitle = "Manage pet reports and community updates from one shared hub.",
+  subtitle = "Manage pet reports and community posts from one shared hub.",
 }: UpdatesBoardProps) {
   const toast = useToast();
   const [items, setItems] = useState<UpdateItem[]>([]);
@@ -349,10 +349,10 @@ export default function UpdatesBoard({
         body: JSON.stringify(payload),
       });
       if (res.status === 401) {
-        throw new Error("Please login to create updates.");
+        throw new Error("Please login to create posts.");
       }
       if (!res.ok) {
-        throw new Error(`Failed to create update (${res.status})`);
+        throw new Error(`Failed to create post (${res.status})`);
       }
       let created = (await res.json()) as UpdateItem;
       if (filesDraft.length > 0) {
@@ -379,7 +379,7 @@ export default function UpdatesBoard({
       setImageUrlDraft("");
       setFilesDraft([]);
       setPreviewUrls([]);
-      toast.success("Update created successfully!");
+      toast.success("Post created successfully!");
     } catch (e) {
       const errorMsg = e instanceof Error ? e.message : "Unknown error";
       setFormError(errorMsg);
@@ -490,7 +490,7 @@ export default function UpdatesBoard({
         },
       );
       if (res.status === 401) {
-        throw new Error("Please login to edit updates.");
+        throw new Error("Please login to edit posts.");
       }
       if (!res.ok) {
         throw new Error(`Failed to update (${res.status})`);
@@ -533,7 +533,7 @@ export default function UpdatesBoard({
       setEditOpen(false);
       setEditExistingImages([]);
       setRemovedImageIds(new Set());
-      toast.success("Update saved successfully!");
+      toast.success("Post saved successfully!");
     } catch (e) {
       const errorMsg = e instanceof Error ? e.message : "Unknown error";
       setFormError(errorMsg);
@@ -564,7 +564,7 @@ export default function UpdatesBoard({
         },
       );
       if (res.status === 401) {
-        throw new Error("Please login to delete updates.");
+        throw new Error("Please login to delete posts.");
       }
       if (!res.ok) {
         throw new Error(`Failed to delete (${res.status})`);
@@ -573,7 +573,7 @@ export default function UpdatesBoard({
         prev.filter((item) => itemKey(item) !== itemKey(activeItem)),
       );
       setDeleteOpen(false);
-      toast.success("Update deleted successfully!");
+      toast.success("Post deleted successfully!");
     } catch (e) {
       const errorMsg = e instanceof Error ? e.message : "Unknown error";
       setFormError(errorMsg);
@@ -823,7 +823,7 @@ export default function UpdatesBoard({
         <div className="update-stat-card">
           <div className="update-stat-label">Community</div>
           <strong>{stats.communityCount}</strong>
-          <span>Help requests and updates</span>
+          <span>Help requests and posts</span>
         </div>
         <div className="update-stat-card">
           <div className="update-stat-label">High priority</div>
@@ -872,14 +872,14 @@ export default function UpdatesBoard({
       </div>
       {error && <p className="error">{error}</p>}
       {loading && items.length === 0 && (
-        <PawLoader label="Loading updates" size="lg" />
+        <PawLoader label="Loading posts" size="lg" />
       )}
       {!loading && filteredItems.length === 0 && (
         <div className="update-empty">
           <Sparkles size={18} />
           <div>
-            <strong>No updates found</strong>
-            <span>Try a different filter or create the first update.</span>
+            <strong>No posts found</strong>
+            <span>Try a different filter or create the first post.</span>
           </div>
         </div>
       )}
@@ -1193,7 +1193,7 @@ export default function UpdatesBoard({
       </div>
       <Dialog
         open={createOpen}
-        title="Create new post"
+        title="Create post"
         onClose={() => setCreateOpen(false)}
         footer={
           <div className="form-actions">
@@ -1208,7 +1208,7 @@ export default function UpdatesBoard({
               {saving ? (
                 <PawLoader label="Saving" size="sm" />
               ) : (
-                "Publish update"
+                "Publish post"
               )}
             </Button>
           </div>
@@ -1220,7 +1220,7 @@ export default function UpdatesBoard({
           onSubmit={handleCreate}
         >
           <Dropdown
-            label="Update type"
+            label="Post type"
             value={draftType}
             onChange={(value) => setDraftType(value as UpdateItemType)}
             options={[
@@ -1246,7 +1246,7 @@ export default function UpdatesBoard({
               placeholder={
                 draftType === "report"
                   ? "Share the key details for this report."
-                  : "Share the update or request for help."
+                  : "Share the post or request for help."
               }
               required={draftType === "community"}
             />
@@ -1369,7 +1369,7 @@ export default function UpdatesBoard({
       </Dialog>
       <Dialog
         open={editOpen}
-        title="Edit update"
+        title="Edit post"
         onClose={() => setEditOpen(false)}
         footer={
           <div className="form-actions">
@@ -1581,7 +1581,7 @@ export default function UpdatesBoard({
       </Dialog>
       <Dialog
         open={deleteOpen}
-        title="Delete update"
+        title="Delete post"
         onClose={() => setDeleteOpen(false)}
         footer={
           <div className="form-actions">
@@ -1607,7 +1607,7 @@ export default function UpdatesBoard({
           </div>
         }
       >
-        <p>Are you sure you want to remove this update?</p>
+        <p>Are you sure you want to remove this post?</p>
       </Dialog>
     </section>
   );

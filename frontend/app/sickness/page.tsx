@@ -40,6 +40,12 @@ const SEVERITY_OPTIONS = [
   { label: "Critical", value: "critical" },
 ];
 
+const IMAGE_OPTIONS = [
+  { label: "All media", value: "all" },
+  { label: "With photos", value: "with" },
+  { label: "No photos", value: "without" },
+];
+
 const formatLabel = (value?: string | null) => {
   if (!value) return "";
   return value.charAt(0).toUpperCase() + value.slice(1);
@@ -50,6 +56,8 @@ export default function SicknessPage() {
   const [items, setItems] = useState<Sickness[]>([]);
   const [query, setQuery] = useState("");
   const [severityFilter, setSeverityFilter] = useState("all");
+  const [speciesFilter, setSpeciesFilter] = useState("all");
+  const [mediaFilter, setMediaFilter] = useState("all");
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -138,10 +146,35 @@ export default function SicknessPage() {
     fetchSicknesses();
   }, []);
 
+  const speciesOptions = useMemo(() => {
+    const speciesSet = new Set<string>();
+    items.forEach((item) => {
+      const normalized = item.species?.trim();
+      if (normalized) {
+        speciesSet.add(normalized);
+      }
+    });
+    return [
+      { label: "All species", value: "all" },
+      ...Array.from(speciesSet)
+        .sort((a, b) => a.localeCompare(b))
+        .map((value) => ({ label: value, value })),
+    ];
+  }, [items]);
+
   const filtered = useMemo(() => {
     const normalized = query.trim().toLowerCase();
     return items.filter((item) => {
       if (severityFilter !== "all" && item.severity !== severityFilter) {
+        return false;
+      }
+      if (speciesFilter !== "all" && (item.species || "").trim() !== speciesFilter) {
+        return false;
+      }
+      if (mediaFilter === "with" && (!item.images || item.images.length === 0)) {
+        return false;
+      }
+      if (mediaFilter === "without" && item.images && item.images.length > 0) {
         return false;
       }
       if (!normalized) return true;
@@ -150,7 +183,7 @@ export default function SicknessPage() {
       } ${item.remedies ?? ""}`.toLowerCase();
       return haystack.includes(normalized);
     });
-  }, [items, query, severityFilter]);
+  }, [items, query, severityFilter, speciesFilter, mediaFilter]);
 
   async function handleCreate(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -364,6 +397,18 @@ export default function SicknessPage() {
                 value={severityFilter}
                 onChange={setSeverityFilter}
                 options={SEVERITY_OPTIONS}
+              />
+              <Dropdown
+                label="Species"
+                value={speciesFilter}
+                onChange={setSpeciesFilter}
+                options={speciesOptions}
+              />
+              <Dropdown
+                label="Media"
+                value={mediaFilter}
+                onChange={setMediaFilter}
+                options={IMAGE_OPTIONS}
               />
             </div>
           </div>

@@ -1,7 +1,7 @@
 import { MEDIA } from "./media";
 
 export const NAV_LINKS = [
-  { label: "Updates", href: "/feed" },
+  { label: "Feed", href: "/feed" },
   { label: "Reports + Community", href: "/feed" },
   { label: "Sickness Guide", href: "/sickness" },
   { label: "Care Teams", href: "/care-teams" },
@@ -17,7 +17,7 @@ export const SECTION_CONTENT = {
     badge: "Reports that move fast",
     stats: [
       { value: "2 min", label: "Average report time" },
-      { value: "24/7", label: "Always-on updates" },
+      { value: "24/7", label: "Always-on posts" },
       { value: "1 hub", label: "Care coordination" },
     ],
     features: [
@@ -43,7 +43,7 @@ export const SECTION_CONTENT = {
       bullets: [
         "Add a clear title and description",
         "Include location and category details",
-        "Refresh the list to see new posts and updates",
+        "Refresh the list to see new posts",
       ],
     },
     ctaLabel: "Open a report",

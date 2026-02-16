@@ -121,7 +121,7 @@ export default function SectionPage({
             </p>
           </div>
           <Link className="primary" href="/feed#updates-board">
-            Open updates
+            Open feed
           </Link>
         </section>
       </div>

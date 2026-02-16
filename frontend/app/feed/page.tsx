@@ -27,7 +27,7 @@ export default function FeedPage() {
           <UpdatesBoard
             defaultType="all"
             title="Browse your feed"
-            subtitle="One feature-rich container for reports, community updates, reactions, comments, edits, and media uploads."
+            subtitle="One feature-rich container for reports, community posts, reactions, comments, edits, and media uploads."
           />
         </div>
       </div>

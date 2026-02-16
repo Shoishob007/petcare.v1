@@ -5,6 +5,9 @@ export type AuthUser = {
   first_name?: string | null;
   last_name?: string | null;
   username?: string | null;
+  profile_image_url?: string | null;
+  avatar_url?: string | null;
+  image_url?: string | null;
   phone?: string | null;
   city?: string | null;
   country?: string | null;
