@@ -1,8 +1,9 @@
 from datetime import datetime
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from sqlalchemy.orm import Session
 
+from app.core.uploads import delete_upload, save_upload
 from app.core.security import (
     create_access_token,
     get_current_user,
@@ -136,6 +137,23 @@ def change_password(
     current_user.password = hash_password(payload.new_password)
     db.commit()
     return {"status": "password_updated"}
+
+
+@router.post("/upload-profile-image", response_model=AuthUserResponse)
+def upload_profile_image(
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    existing_image = current_user.profile_image_url
+    file_name = save_upload(file)
+    if existing_image and existing_image.startswith("/uploads/"):
+        delete_upload(existing_image.replace("/uploads/", ""))
+
+    current_user.profile_image_url = f"/uploads/{file_name}"
+    db.commit()
+    db.refresh(current_user)
+    return current_user
 
 
 @router.get("/users", response_model=AuthUsersListResponse)

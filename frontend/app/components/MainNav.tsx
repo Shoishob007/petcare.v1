@@ -23,7 +23,12 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "./ui/dropdown-menu";
-import { clearAuthSession, getAuthUser, type AuthUser } from "../lib/auth";
+import {
+  clearAuthSession,
+  getAuthUser,
+  resolveAuthImageUrl,
+  type AuthUser,
+} from "../lib/auth";
 import { Avatar } from "./shared/Avatar";
 import BrandMark from "./BrandMark";
 
@@ -33,16 +38,25 @@ export default function MainNav() {
   const pathname = usePathname();
 
   useEffect(() => {
-    const authUser = getAuthUser();
-    setUser(authUser);
+    const syncUser = () => {
+      setUser(getAuthUser());
+    };
+    syncUser();
+    window.addEventListener("petcare-auth-updated", syncUser);
+    window.addEventListener("storage", syncUser);
+    return () => {
+      window.removeEventListener("petcare-auth-updated", syncUser);
+      window.removeEventListener("storage", syncUser);
+    };
   }, [pathname]);
 
   const isAuthenticated = Boolean(user);
   const userRole = (user?.role || "user").toLowerCase();
   const fullName = `${user?.first_name || ""} ${user?.last_name || ""}`.trim();
   const userDisplayName = fullName || user?.username || user?.email || "User";
-  const userImage =
-    user?.profile_image_url || user?.avatar_url || user?.image_url || undefined;
+  const userImage = resolveAuthImageUrl(
+    user?.profile_image_url || user?.avatar_url || user?.image_url,
+  );
 
   const navigationItems = [
     { href: "/", label: "Home", icon: Home },

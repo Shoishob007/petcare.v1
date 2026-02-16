@@ -21,6 +21,8 @@ export type AuthUser = {
 
 const TOKEN_KEY = "petcare_token";
 const USER_KEY = "petcare_user";
+const AUTH_API_ROOT =
+  process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "") || "http://localhost:8000";
 
 export function getAuthToken(): string | null {
   if (typeof window === "undefined") return null;
@@ -43,6 +45,7 @@ export function setAuthSession(token: string, user: AuthUser) {
   localStorage.setItem(TOKEN_KEY, token);
   localStorage.setItem(USER_KEY, JSON.stringify(user));
   document.cookie = `petcare_token=${encodeURIComponent(token)}; path=/; max-age=2592000; samesite=lax`;
+  window.dispatchEvent(new Event("petcare-auth-updated"));
 }
 
 export function clearAuthSession() {
@@ -50,4 +53,16 @@ export function clearAuthSession() {
   localStorage.removeItem(TOKEN_KEY);
   localStorage.removeItem(USER_KEY);
   document.cookie = "petcare_token=; path=/; max-age=0; samesite=lax";
+  window.dispatchEvent(new Event("petcare-auth-updated"));
+}
+
+export function resolveAuthImageUrl(url?: string | null): string | undefined {
+  if (!url) return undefined;
+  if (url.startsWith("http://") || url.startsWith("https://") || url.startsWith("data:")) {
+    return url;
+  }
+  if (url.startsWith("/")) {
+    return `${AUTH_API_ROOT}${url}`;
+  }
+  return url;
 }

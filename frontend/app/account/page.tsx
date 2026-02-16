@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useState, useRef } from "react";
+import { ChangeEvent, FormEvent, useEffect, useState, useRef } from "react";
 import MainNav from "../components/MainNav";
 import SiteFooter from "../components/SiteFooter";
 import PawLoader from "../components/PawLoader";
@@ -8,6 +8,7 @@ import { Avatar } from "../components/shared/Avatar";
 import { apiFetch } from "../lib/api";
 import {
   getAuthToken,
+  resolveAuthImageUrl,
   setAuthSession,
   type AuthUser,
 } from "../lib/auth";
@@ -65,7 +66,11 @@ export default function AccountPage() {
         setSpecializations(payload.specializations || "");
         setIsPetCaregiver(Boolean(payload.is_pet_caregiver));
         setIsVeterinarian(Boolean(payload.is_veterinarian));
-        setProfileImage(payload.profile_image_url || payload.avatar_url || payload.image_url);
+        setProfileImage(
+          resolveAuthImageUrl(
+            payload.profile_image_url || payload.avatar_url || payload.image_url,
+          ),
+        );
       } catch (accountError) {
         setError(
           accountError instanceof Error
@@ -80,19 +85,19 @@ export default function AccountPage() {
     bootstrap();
   }, []);
 
-  async function handleImageUpload(event: React.ChangeEvent<HTMLInputElement>) {
+  async function handleImageUpload(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
     if (!file) return;
 
     // Validate file type
-    if (!file.type.startsWith('image/')) {
-      setError('Please select an image file');
+    if (!file.type.startsWith("image/")) {
+      setError("Please select an image file");
       return;
     }
 
     // Validate file size (max 5MB)
     if (file.size > 5 * 1024 * 1024) {
-      setError('Image size should be less than 5MB');
+      setError("Image size should be less than 5MB");
       return;
     }
 
@@ -107,7 +112,7 @@ export default function AccountPage() {
 
     try {
       const formData = new FormData();
-      formData.append('file', file);
+      formData.append("file", file);
 
       const res = await apiFetch("/auth/upload-profile-image", {
         method: "POST",
@@ -124,8 +129,16 @@ export default function AccountPage() {
         );
       }
 
-      const result = await res.json();
-      setProfileImage(result.image_url);
+      const updatedUser = (await res.json()) as AuthUser;
+      setUser(updatedUser);
+      setAuthSession(token, updatedUser);
+      setProfileImage(
+        resolveAuthImageUrl(
+          updatedUser.profile_image_url ||
+            updatedUser.avatar_url ||
+            updatedUser.image_url,
+        ),
+      );
       setSuccess("Profile image updated successfully.");
     } catch (uploadError) {
       setError(
@@ -135,6 +148,7 @@ export default function AccountPage() {
       );
     } finally {
       setUploadingImage(false);
+      event.target.value = "";
     }
   }
 
@@ -181,6 +195,13 @@ export default function AccountPage() {
       const updatedUser = (await res.json()) as AuthUser;
       setUser(updatedUser);
       setAuthSession(token, updatedUser);
+      setProfileImage(
+        resolveAuthImageUrl(
+          updatedUser.profile_image_url ||
+            updatedUser.avatar_url ||
+            updatedUser.image_url,
+        ),
+      );
       setSuccess("Profile updated successfully.");
     } catch (profileError) {
       setError(
@@ -308,7 +329,7 @@ export default function AccountPage() {
                     type="file"
                     accept="image/*"
                     onChange={handleImageUpload}
-                    style={{ display: 'none' }}
+                    style={{ display: "none" }}
                   />
                 </div>
                 <div>
