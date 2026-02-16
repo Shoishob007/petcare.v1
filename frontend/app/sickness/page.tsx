@@ -81,6 +81,12 @@ export default function SicknessPage() {
   const [editRemedies, setEditRemedies] = useState("");
   const [editSeverity, setEditSeverity] = useState("moderate");
   const [editImageFiles, setEditImageFiles] = useState<File[]>([]);
+  const [editExistingImages, setEditExistingImages] = useState<SicknessImage[]>(
+    [],
+  );
+  const [removedImageIds, setRemovedImageIds] = useState<Set<string>>(
+    new Set(),
+  );
   const [actionLoading, setActionLoading] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
 
@@ -249,7 +255,35 @@ export default function SicknessPage() {
     setEditRemedies(item.remedies || "");
     setEditSeverity(item.severity || "moderate");
     setEditImageFiles([]);
+    setEditExistingImages(item.images || []);
+    setRemovedImageIds(new Set());
     setEditOpen(true);
+  }
+
+  function toggleRemoveExistingImage(imageId: string) {
+    setRemovedImageIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(imageId)) {
+        next.delete(imageId);
+      } else {
+        next.add(imageId);
+      }
+      return next;
+    });
+  }
+
+  async function deleteExistingImage(
+    sicknessId: string,
+    imageId: string,
+    token: string,
+  ) {
+    const res = await fetch(`${API_BASE}/sicknesses/${sicknessId}/images/${imageId}`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) {
+      throw new Error(`Failed to remove image (${res.status})`);
+    }
   }
 
   async function handleEditSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -280,18 +314,35 @@ export default function SicknessPage() {
         throw new Error(`Failed to update sickness (${res.status})`);
       }
       let updated = (await res.json()) as Sickness;
+
+      const markedForDelete = Array.from(removedImageIds);
+      for (const imageId of markedForDelete) {
+        await deleteExistingImage(updated.id, imageId, token);
+      }
+
+      if (markedForDelete.length > 0) {
+        updated = {
+          ...updated,
+          images: (updated.images || []).filter(
+            (image) => !removedImageIds.has(image.id),
+          ),
+        };
+      }
+
       if (editImageFiles.length > 0) {
         const uploaded = await uploadSicknessImages(
           updated.id,
           editImageFiles,
           token,
         );
-        updated = { ...updated, images: uploaded };
+        updated = { ...updated, images: [...(updated.images || []), ...uploaded] };
       }
       setItems((prev) =>
         prev.map((item) => (item.id === updated.id ? updated : item)),
       );
       setEditOpen(false);
+      setEditExistingImages([]);
+      setRemovedImageIds(new Set());
       toast.success("Sickness updated successfully!");
     } catch (e) {
       const errorMsg = e instanceof Error ? e.message : "Unknown error";
@@ -404,12 +455,12 @@ export default function SicknessPage() {
                 onChange={setSpeciesFilter}
                 options={speciesOptions}
               />
-              <Dropdown
+              {/* <Dropdown
                 label="Media"
                 value={mediaFilter}
                 onChange={setMediaFilter}
                 options={IMAGE_OPTIONS}
-              />
+              /> */}
             </div>
           </div>
         </section>
@@ -425,7 +476,7 @@ export default function SicknessPage() {
             <PawLoader label="Loading conditions" size="lg" />
           )}
           {error && <p className="error">{error}</p>}
-          <div className="grid-list">
+          <div className="grid-list condition-grid-list">
             {filtered.map((item) => (
               <article key={item.id} className="sickness-card">
                 <div className="card-header">
@@ -437,6 +488,7 @@ export default function SicknessPage() {
                 <p>{item.summary}</p>
                 {item.images?.length > 0 && (
                   <MediaGrid
+                    previewLimit={3}
                     items={item.images.map((image) => ({
                       id: image.id,
                       src: `${API_ROOT}${image.url}`,
@@ -662,6 +714,59 @@ export default function SicknessPage() {
               }
             />
           </label>
+
+          {editExistingImages.length > 0 && (
+            <div className="form-grid">
+              <label>Existing photos</label>
+              <div
+                className="grid-list"
+                style={{
+                  gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))",
+                  gap: "10px",
+                }}
+              >
+                {editExistingImages.map((image) => {
+                  const marked = removedImageIds.has(image.id);
+                  const imageSrc = image.url.startsWith("/uploads/")
+                    ? `${API_ROOT}${image.url}`
+                    : image.url;
+                  return (
+                    <div
+                      key={image.id}
+                      style={{
+                        position: "relative",
+                        borderRadius: "8px",
+                        overflow: "hidden",
+                        border: marked
+                          ? "2px solid rgba(176,0,32,0.5)"
+                          : "1px solid rgba(31, 92, 74, 0.2)",
+                        opacity: marked ? 0.55 : 1,
+                      }}
+                    >
+                      <img
+                        src={imageSrc}
+                        alt="Existing upload"
+                        style={{
+                          width: "100%",
+                          height: "120px",
+                          objectFit: "cover",
+                          display: "block",
+                        }}
+                      />
+                      <button
+                        type="button"
+                        className="btn btn-danger btn-sm"
+                        style={{ position: "absolute", top: 6, right: 6 }}
+                        onClick={() => toggleRemoveExistingImage(image.id)}
+                      >
+                        {marked ? "Undo" : "Remove"}
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </form>
       </Dialog>
 

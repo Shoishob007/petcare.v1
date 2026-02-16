@@ -1274,11 +1274,12 @@ textarea {
   border: 1px solid rgba(255, 255, 255, 0.4);
   display: grid;
   place-items: center;
-  font-size: 1.3rem;
+  background: rgba(255, 255, 255, 0.1);
 }
 
 .media-overlay-count {
-  font-size: 1.25rem;
+  font-size: 0.95rem;
+  letter-spacing: 0.01em;
 }
 
 .media-overlay-label {
@@ -1479,6 +1480,14 @@ textarea {
 
 .sickness-card p {
   color: var(--muted);
+}
+
+.condition-grid-list {
+  align-items: start;
+}
+
+.condition-grid-list > .sickness-card {
+  align-self: start;
 }
 
 .support-card {

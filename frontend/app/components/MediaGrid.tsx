@@ -11,17 +11,22 @@ type MediaItem = {
 
 type MediaGridProps = {
   items: MediaItem[];
+  previewLimit?: number;
 };
 
-export default function MediaGrid({ items }: MediaGridProps) {
+export default function MediaGrid({ items, previewLimit }: MediaGridProps) {
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [currentIndex, setCurrentIndex] = useState(0);
 
   if (!items.length) return null;
 
-  const maxVisible = items.length > 3 ? 4 : items.length;
+  const limit =
+    typeof previewLimit === "number" && previewLimit > 0
+      ? Math.floor(previewLimit)
+      : 4;
+  const hasExtra = items.length > limit;
+  const maxVisible = hasExtra ? limit : items.length;
   const visible = items.slice(0, maxVisible);
-  const extra = items.length > 3 ? items.length - 3 : 0;
   const gridClass = `media-grid media-grid-${Math.min(visible.length, 4)}`;
 
   const handleImageClick = (index: number) => {
@@ -47,18 +52,20 @@ export default function MediaGrid({ items }: MediaGridProps) {
             onClick={() => handleImageClick(index)}
           >
             <img src={item.src} alt={item.alt ?? "Post media"} loading="lazy" />
-            {extra > 0 && index === visible.length - 1 && (
+            {hasExtra && index === visible.length - 1 && (
               <div
                 className="media-overlay"
                 onClick={(e) => {
                   e.stopPropagation();
-                  setCurrentIndex(3);
+                  setCurrentIndex(index);
                   setLightboxOpen(true);
                 }}
               >
-                <span className="media-overlay-icon">+</span>
-                <span className="media-overlay-count">{extra}</span>
-                <span className="media-overlay-label">View all</span>
+                <span className="media-overlay-icon" aria-hidden>
+                  All
+                </span>
+                <span className="media-overlay-count">{items.length} photos</span>
+                <span className="media-overlay-label">Open gallery</span>
               </div>
             )}
           </div>

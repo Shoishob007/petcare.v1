@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from sqlalchemy.orm import Session
 
 from app.core.security import require_roles
-from app.core.uploads import save_upload
+from app.core.uploads import delete_upload, save_upload
 from app.db.session import get_db
 from app.models.sickness_images import SicknessImage
 from app.models.sicknesses import Sickness
@@ -65,8 +65,6 @@ def delete_sickness(
         raise HTTPException(status_code=404, detail="Sickness not found.")
 
     for image in sickness.images:
-        from app.core.uploads import delete_upload
-
         delete_upload(image.file_name)
 
     db.delete(sickness)
@@ -99,3 +97,31 @@ def upload_sickness_images(
     for image in images:
         db.refresh(image)
     return images
+
+
+@router.delete("/sicknesses/{sickness_id}/images/{image_id}")
+def delete_sickness_image(
+    sickness_id: str,
+    image_id: str,
+    db: Session = Depends(get_db),
+    _admin=Depends(require_roles("admin")),
+):
+    sickness = db.query(Sickness).filter(Sickness.id == sickness_id).first()
+    if not sickness:
+        raise HTTPException(status_code=404, detail="Sickness not found.")
+
+    image = (
+        db.query(SicknessImage)
+        .filter(
+            SicknessImage.id == image_id,
+            SicknessImage.sickness_id == sickness_id,
+        )
+        .first()
+    )
+    if not image:
+        raise HTTPException(status_code=404, detail="Image not found.")
+
+    delete_upload(image.file_name)
+    db.delete(image)
+    db.commit()
+    return {"status": "deleted"}
