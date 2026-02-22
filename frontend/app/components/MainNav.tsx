@@ -7,6 +7,7 @@ import {
   Menu,
   Heart,
   MessageCircle,
+  MessageSquare,
   Home,
   Activity,
   LogOut,
@@ -25,16 +26,19 @@ import {
 } from "./ui/dropdown-menu";
 import {
   clearAuthSession,
+  getAuthToken,
   getAuthUser,
   resolveAuthImageUrl,
   type AuthUser,
 } from "../lib/auth";
+import { apiFetch } from "../lib/api";
 import { Avatar } from "./shared/Avatar";
 import BrandMark from "./BrandMark";
 
 export default function MainNav() {
   const [open, setOpen] = useState(false);
   const [user, setUser] = useState<AuthUser | null>(null);
+  const [unreadChatCount, setUnreadChatCount] = useState(0);
   const pathname = usePathname();
 
   useEffect(() => {
@@ -50,6 +54,47 @@ export default function MainNav() {
     };
   }, [pathname]);
 
+  useEffect(() => {
+    if (!user) {
+      setUnreadChatCount(0);
+      return;
+    }
+
+    let active = true;
+    const token = getAuthToken();
+    if (!token) return;
+
+    const fetchUnreadCount = async () => {
+      try {
+        const res = await apiFetch("/chat/chats/unread-count", {
+          headers: { Authorization: `Bearer ${token}` },
+          cache: "no-store",
+        });
+        if (!res.ok) return;
+        const payload = (await res.json()) as { total_unread?: number };
+        if (active) {
+          setUnreadChatCount(Number(payload.total_unread || 0));
+        }
+      } catch {
+        // Ignore unread polling errors and keep last known value.
+      }
+    };
+
+    fetchUnreadCount();
+    const interval = window.setInterval(fetchUnreadCount, 20000);
+
+    const handleChatUpdate = () => {
+      fetchUnreadCount();
+    };
+    window.addEventListener("petcare-chat-updated", handleChatUpdate);
+
+    return () => {
+      active = false;
+      window.clearInterval(interval);
+      window.removeEventListener("petcare-chat-updated", handleChatUpdate);
+    };
+  }, [user?.id]);
+
   const isAuthenticated = Boolean(user);
   const userRole = (user?.role || "user").toLowerCase();
   const fullName = `${user?.first_name || ""} ${user?.last_name || ""}`.trim();
@@ -61,6 +106,7 @@ export default function MainNav() {
   const navigationItems = [
     { href: "/", label: "Home", icon: Home },
     { href: "/feed", label: "Feed", icon: MessageCircle },
+    { href: "/chat", label: "Chat", icon: MessageSquare, badge: unreadChatCount },
     { href: "/sickness", label: "Pet Health", icon: Activity },
     { href: "/care-teams", label: "Care Teams", icon: Heart },
   ];
@@ -122,6 +168,11 @@ export default function MainNav() {
                   strokeWidth={isActive ? 2.5 : 2}
                 />
                 {item.label}
+                {item.badge && item.badge > 0 ? (
+                  <span className="ml-2 inline-flex min-w-[20px] h-5 items-center justify-center rounded-full bg-primary/15 px-1.5 text-[11px] font-bold text-primary">
+                    {item.badge > 99 ? "99+" : item.badge}
+                  </span>
+                ) : null}
               </Link>
             );
           })}
@@ -225,6 +276,11 @@ export default function MainNav() {
                       strokeWidth={isActive ? 2.5 : 2}
                     />
                     {item.label}
+                    {item.badge && item.badge > 0 ? (
+                      <span className="ml-auto inline-flex min-w-[20px] h-5 items-center justify-center rounded-full bg-primary/15 px-1.5 text-[11px] font-bold text-primary">
+                        {item.badge > 99 ? "99+" : item.badge}
+                      </span>
+                    ) : null}
                   </Link>
                 );
               })}

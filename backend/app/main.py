@@ -4,6 +4,7 @@ from fastapi.staticfiles import StaticFiles
 
 from app.api.v1.auth import router as auth_router
 from app.api.v1.care_team import router as care_team_router
+from app.api.v1.chat import router as chat_router
 from app.api.v1.community_posts import router as community_posts_router
 from app.api.v1.feed import router as feed_router
 from app.api.v1.reports import router as reports_router
@@ -60,6 +61,7 @@ app.include_router(care_team_router, prefix="/api/v1")
 app.include_router(sicknesses_router, prefix="/api/v1")
 app.include_router(feed_router, prefix="/api/v1")
 app.include_router(updates_router, prefix="/api/v1")
+app.include_router(chat_router, prefix="/api/v1")
 
 
 @app.on_event("startup")

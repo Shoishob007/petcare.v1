@@ -61,6 +61,25 @@ class User(Base):
     community_post_comments = relationship("CommunityPostComment", back_populates="user")
     report_reactions = relationship("ReportReaction", back_populates="user", cascade="all, delete-orphan")
     community_post_reactions = relationship("CommunityPostReaction", back_populates="user", cascade="all, delete-orphan")
+    chat_memberships = relationship("ChatMember", back_populates="user", cascade="all, delete-orphan")
+    chat_messages = relationship("ChatMessage", back_populates="sender", cascade="all, delete-orphan")
+    chat_member_requests = relationship(
+        "ChatMemberRequest",
+        foreign_keys="ChatMemberRequest.requester_id",
+        back_populates="requester",
+        cascade="all, delete-orphan",
+    )
+    chat_member_targets = relationship(
+        "ChatMemberRequest",
+        foreign_keys="ChatMemberRequest.target_user_id",
+        back_populates="target_user",
+        cascade="all, delete-orphan",
+    )
+    chat_member_reviews = relationship(
+        "ChatMemberRequest",
+        foreign_keys="ChatMemberRequest.reviewed_by_id",
+        back_populates="reviewed_by",
+    )
 
 
 class Pet(Base):

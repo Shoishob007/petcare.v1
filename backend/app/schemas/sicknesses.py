@@ -38,6 +38,7 @@ class SicknessResponse(BaseModel):
     symptoms: Optional[str] = None
     remedies: Optional[str] = None
     severity: Optional[str] = None
+    is_verified: Optional[bool] = None
     created_at: datetime
 
     images: List[SicknessImageResponse] = []

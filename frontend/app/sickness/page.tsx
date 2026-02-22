@@ -19,6 +19,7 @@ type Sickness = {
   symptoms?: string | null;
   remedies?: string | null;
   severity?: string | null;
+  is_verified?: boolean;
   created_at: string;
   images: SicknessImage[];
 };
@@ -54,6 +55,7 @@ const formatLabel = (value?: string | null) => {
 export default function SicknessPage() {
   const toast = useToast();
   const [items, setItems] = useState<Sickness[]>([]);
+  const [pendingItems, setPendingItems] = useState<Sickness[]>([]);
   const [query, setQuery] = useState("");
   const [severityFilter, setSeverityFilter] = useState("all");
   const [speciesFilter, setSpeciesFilter] = useState("all");
@@ -128,6 +130,30 @@ export default function SicknessPage() {
     }
   }
 
+  async function fetchPendingSicknesses() {
+    if (!isAdmin) {
+      setPendingItems([]);
+      return;
+    }
+    const token = getAuthToken();
+    if (!token) return;
+
+    try {
+      const res = await fetch(`${API_BASE}/sicknesses/pending`, {
+        headers: { Authorization: `Bearer ${token}` },
+        cache: "no-store",
+      });
+      if (!res.ok) {
+        throw new Error(`Failed to load pending conditions (${res.status})`);
+      }
+      const data = (await res.json()) as Sickness[];
+      setPendingItems(data || []);
+    } catch (e) {
+      const errorMsg = e instanceof Error ? e.message : "Unknown error";
+      toast.error(errorMsg);
+    }
+  }
+
   async function uploadSicknessImages(
     sicknessId: string,
     files: File[],
@@ -151,6 +177,57 @@ export default function SicknessPage() {
   useEffect(() => {
     fetchSicknesses();
   }, []);
+
+  useEffect(() => {
+    if (isAdmin) {
+      fetchPendingSicknesses();
+    }
+  }, [isAdmin]);
+
+  async function handleApprovePending(sicknessId: string) {
+    const token = requireAdminToken();
+    if (!token) return;
+    setActionLoading(true);
+    try {
+      const res = await fetch(`${API_BASE}/sicknesses/${sicknessId}/approve`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) {
+        throw new Error(`Failed to approve condition (${res.status})`);
+      }
+      toast.success("Condition approved.");
+      await fetchSicknesses();
+      await fetchPendingSicknesses();
+    } catch (e) {
+      const errorMsg = e instanceof Error ? e.message : "Unknown error";
+      toast.error(errorMsg);
+    } finally {
+      setActionLoading(false);
+    }
+  }
+
+  async function handleRejectPending(sicknessId: string) {
+    const token = requireAdminToken();
+    if (!token) return;
+    setActionLoading(true);
+    try {
+      const res = await fetch(`${API_BASE}/sicknesses/${sicknessId}/reject`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) {
+        throw new Error(`Failed to reject condition (${res.status})`);
+      }
+      toast.success("Condition rejected.");
+      await fetchPendingSicknesses();
+    } catch (e) {
+      const errorMsg = e instanceof Error ? e.message : "Unknown error";
+      toast.error(errorMsg);
+    } finally {
+      setActionLoading(false);
+    }
+  }
 
   const speciesOptions = useMemo(() => {
     const speciesSet = new Set<string>();
@@ -197,8 +274,12 @@ export default function SicknessPage() {
     setSaving(true);
     setError(null);
     try {
-      const token = requireAdminToken();
-      if (!token) return;
+      const token = getAuthToken();
+      if (!token) {
+        toast.error("Please login to submit a condition.");
+        window.location.href = "/login";
+        return;
+      }
 
       const res = await fetch(`${API_BASE}/sicknesses`, {
         method: "POST",
@@ -227,7 +308,9 @@ export default function SicknessPage() {
         );
         created = { ...created, images: uploaded };
       }
-      setItems((prev) => [created, ...prev]);
+      if (created.is_verified) {
+        setItems((prev) => [created, ...prev]);
+      }
       setName("");
       setSpecies("");
       setSummary("");
@@ -236,7 +319,12 @@ export default function SicknessPage() {
       setSeverity("moderate");
       setImageFiles([]);
       setCreateOpen(false);
-      toast.success("Sickness created successfully!");
+      if (created.is_verified) {
+        toast.success("Condition created successfully!");
+      } else {
+        toast.success("Condition submitted and waiting for admin approval.");
+      }
+      fetchSicknesses();
     } catch (e) {
       const errorMsg = e instanceof Error ? e.message : "Unknown error";
       setError(errorMsg);
@@ -402,11 +490,17 @@ export default function SicknessPage() {
               <Button
                 type="button"
                 onClick={() => setCreateOpen(true)}
-                disabled={!isAdmin}
               >
                 Add condition
               </Button>
-              <Button variant="ghost" type="button" onClick={fetchSicknesses}>
+              <Button
+                variant="ghost"
+                type="button"
+                onClick={() => {
+                  fetchSicknesses();
+                  if (isAdmin) fetchPendingSicknesses();
+                }}
+              >
                 {loading ? (
                   <PawLoader label="Refreshing" size="sm" />
                 ) : (
@@ -416,6 +510,54 @@ export default function SicknessPage() {
             </div>
           </div>
         </header>
+
+        {isAdmin ? (
+          <section className="panel panel-spaced">
+            <div className="panel-header">
+              <div>
+                <h2>Pending submissions</h2>
+                <p className="subtext">{pendingItems.length} waiting approval</p>
+              </div>
+            </div>
+            {pendingItems.length === 0 ? (
+              <p className="subtext">No pending conditions.</p>
+            ) : (
+              <div className="grid-list condition-grid-list">
+                {pendingItems.map((item) => (
+                  <article key={item.id} className="sickness-card">
+                    <div className="card-header">
+                      <h3>{item.name}</h3>
+                      {item.severity ? (
+                        <span className="pill">{formatLabel(item.severity)}</span>
+                      ) : null}
+                    </div>
+                    <p>{item.summary}</p>
+                    <div className="card-actions">
+                      <Button
+                        type="button"
+                        variant="subtle"
+                        size="sm"
+                        onClick={() => handleApprovePending(item.id)}
+                        disabled={actionLoading}
+                      >
+                        Approve
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="danger"
+                        size="sm"
+                        onClick={() => handleRejectPending(item.id)}
+                        disabled={actionLoading}
+                      >
+                        Reject
+                      </Button>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            )}
+          </section>
+        ) : null}
 
         <section className="panel-spaced two-column">
           <div className="panel">
@@ -800,7 +942,6 @@ export default function SicknessPage() {
       >
         <p>Are you sure you want to remove this condition?</p>
       </Dialog>
-
       <SiteFooter />
     </main>
   );

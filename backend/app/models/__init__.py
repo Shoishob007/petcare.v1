@@ -10,6 +10,7 @@ from app.models.report_reactions import ReportReaction
 from app.models.sicknesses import Sickness
 from app.models.sickness_images import SicknessImage
 from app.models.community_post_reactions import CommunityPostReaction
+from app.models.chat import ChatRoom, ChatMember, ChatMessage, ChatMemberRequest
 
 __all__ = [
     "User",
@@ -27,4 +28,8 @@ __all__ = [
     "Sickness",
     "SicknessImage",
     "CommunityPostReaction",
+    "ChatRoom",
+    "ChatMember",
+    "ChatMessage",
+    "ChatMemberRequest",
 ]
