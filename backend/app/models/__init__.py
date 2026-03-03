@@ -11,6 +11,8 @@ from app.models.sicknesses import Sickness
 from app.models.sickness_images import SicknessImage
 from app.models.community_post_reactions import CommunityPostReaction
 from app.models.chat import ChatRoom, ChatMember, ChatMessage, ChatMemberRequest
+from app.models.home_page_content import HomePageContent
+from app.models.ai_sickness_case import AISicknessCase
 
 __all__ = [
     "User",
@@ -32,4 +34,6 @@ __all__ = [
     "ChatMember",
     "ChatMessage",
     "ChatMemberRequest",
+    "HomePageContent",
+    "AISicknessCase",
 ]

@@ -13,6 +13,61 @@ import {
   type AuthUser,
 } from "../lib/auth";
 
+type HomeStat = {
+  label: string;
+  value: string;
+};
+
+type HomeFeature = {
+  icon: string;
+  title: string;
+  description: string;
+};
+
+type HomeAIPathway = {
+  title: string;
+  description: string;
+  disclaimer: string;
+};
+
+type HomePageContent = {
+  badge: string;
+  title_prefix: string;
+  title_highlight: string;
+  description: string;
+  primary_cta_label: string;
+  primary_cta_href: string;
+  secondary_cta_label: string;
+  secondary_cta_href: string;
+  stats: HomeStat[];
+  features: HomeFeature[];
+  ai_pathway: HomeAIPathway;
+};
+
+const parseStatsText = (value: string): HomeStat[] =>
+  value
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line) => {
+      const [label, entry] = line.split("|").map((part) => part.trim());
+      return { label: label || "Label", value: entry || "0" };
+    });
+
+const parseFeaturesText = (value: string): HomeFeature[] =>
+  value
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line) => {
+      const [icon, title, description] = line.split("|").map((part) => part.trim());
+      return {
+        icon: icon || "Users",
+        title: title || "Feature",
+        description: description || "Description",
+      };
+    });
+
 export default function AccountPage() {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
@@ -37,6 +92,86 @@ export default function AccountPage() {
 
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
+
+  const [homeContent, setHomeContent] = useState<HomePageContent | null>(null);
+  const [homeLoading, setHomeLoading] = useState(false);
+  const [homeSaving, setHomeSaving] = useState(false);
+  const [homeBadge, setHomeBadge] = useState("");
+  const [homeTitlePrefix, setHomeTitlePrefix] = useState("");
+  const [homeTitleHighlight, setHomeTitleHighlight] = useState("");
+  const [homeDescription, setHomeDescription] = useState("");
+  const [homePrimaryLabel, setHomePrimaryLabel] = useState("");
+  const [homePrimaryHref, setHomePrimaryHref] = useState("");
+  const [homeSecondaryLabel, setHomeSecondaryLabel] = useState("");
+  const [homeSecondaryHref, setHomeSecondaryHref] = useState("");
+  const [homeStatsText, setHomeStatsText] = useState("");
+  const [homeFeaturesText, setHomeFeaturesText] = useState("");
+  const [homeAiTitle, setHomeAiTitle] = useState("");
+  const [homeAiDescription, setHomeAiDescription] = useState("");
+  const [homeAiDisclaimer, setHomeAiDisclaimer] = useState("");
+  const [showHomepageManagement, setShowHomepageManagement] = useState(false);
+
+  const isAdmin = (user?.role || "user").toLowerCase() === "admin";
+
+  useEffect(() => {
+    if (!isAdmin) {
+      setShowHomepageManagement(false);
+      return;
+    }
+    const saved =
+      typeof window !== "undefined"
+        ? window.localStorage.getItem("petcare_show_homepage_management")
+        : null;
+    setShowHomepageManagement(saved === "true");
+  }, [isAdmin]);
+
+  const applyHomeContent = (payload: HomePageContent) => {
+    setHomeContent(payload);
+    setHomeBadge(payload.badge || "");
+    setHomeTitlePrefix(payload.title_prefix || "");
+    setHomeTitleHighlight(payload.title_highlight || "");
+    setHomeDescription(payload.description || "");
+    setHomePrimaryLabel(payload.primary_cta_label || "");
+    setHomePrimaryHref(payload.primary_cta_href || "");
+    setHomeSecondaryLabel(payload.secondary_cta_label || "");
+    setHomeSecondaryHref(payload.secondary_cta_href || "");
+    setHomeStatsText(
+      (payload.stats || [])
+        .map((entry) => `${entry.label}|${entry.value}`)
+        .join("\n"),
+    );
+    setHomeFeaturesText(
+      (payload.features || [])
+        .map((feature) => `${feature.icon}|${feature.title}|${feature.description}`)
+        .join("\n"),
+    );
+    setHomeAiTitle(payload.ai_pathway?.title || "");
+    setHomeAiDescription(payload.ai_pathway?.description || "");
+    setHomeAiDisclaimer(payload.ai_pathway?.disclaimer || "");
+  };
+
+  async function loadHomeContent(token: string) {
+    setHomeLoading(true);
+    try {
+      const res = await apiFetch("/homepage-content", {
+        headers: { Authorization: `Bearer ${token}` },
+        cache: "no-store",
+      });
+      if (!res.ok) {
+        throw new Error(`Unable to load homepage content (${res.status})`);
+      }
+      const payload = (await res.json()) as HomePageContent;
+      applyHomeContent(payload);
+    } catch (homeError) {
+      setError(
+        homeError instanceof Error
+          ? homeError.message
+          : "Failed to load homepage content",
+      );
+    } finally {
+      setHomeLoading(false);
+    }
+  }
 
   useEffect(() => {
     async function bootstrap() {
@@ -71,6 +206,10 @@ export default function AccountPage() {
             payload.profile_image_url || payload.avatar_url || payload.image_url,
           ),
         );
+
+        if ((payload.role || "user").toLowerCase() === "admin") {
+          await loadHomeContent(token);
+        }
       } catch (accountError) {
         setError(
           accountError instanceof Error
@@ -135,8 +274,8 @@ export default function AccountPage() {
       setProfileImage(
         resolveAuthImageUrl(
           updatedUser.profile_image_url ||
-            updatedUser.avatar_url ||
-            updatedUser.image_url,
+          updatedUser.avatar_url ||
+          updatedUser.image_url,
         ),
       );
       setSuccess("Profile image updated successfully.");
@@ -198,8 +337,8 @@ export default function AccountPage() {
       setProfileImage(
         resolveAuthImageUrl(
           updatedUser.profile_image_url ||
-            updatedUser.avatar_url ||
-            updatedUser.image_url,
+          updatedUser.avatar_url ||
+          updatedUser.image_url,
         ),
       );
       setSuccess("Profile updated successfully.");
@@ -260,6 +399,71 @@ export default function AccountPage() {
     }
   }
 
+  async function onHomeContentSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const token = getAuthToken();
+    if (!token) {
+      window.location.href = "/login";
+      return;
+    }
+    if (!isAdmin) {
+      setError("Only admin users can manage homepage content.");
+      return;
+    }
+
+    setHomeSaving(true);
+    setError(null);
+    setSuccess(null);
+
+    try {
+      const payload: HomePageContent = {
+        badge: homeBadge.trim(),
+        title_prefix: homeTitlePrefix.trim(),
+        title_highlight: homeTitleHighlight.trim(),
+        description: homeDescription.trim(),
+        primary_cta_label: homePrimaryLabel.trim(),
+        primary_cta_href: homePrimaryHref.trim(),
+        secondary_cta_label: homeSecondaryLabel.trim(),
+        secondary_cta_href: homeSecondaryHref.trim(),
+        stats: parseStatsText(homeStatsText),
+        features: parseFeaturesText(homeFeaturesText),
+        ai_pathway: {
+          title: homeAiTitle.trim(),
+          description: homeAiDescription.trim(),
+          disclaimer: homeAiDisclaimer.trim(),
+        },
+      };
+
+      const res = await apiFetch("/homepage-content", {
+        method: "PATCH",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (!res.ok) {
+        const responsePayload = await res.json().catch(() => null);
+        throw new Error(
+          responsePayload?.detail || `Homepage save failed (${res.status})`,
+        );
+      }
+
+      const updated = (await res.json()) as HomePageContent;
+      applyHomeContent(updated);
+      setSuccess("Homepage content updated successfully.");
+    } catch (homeSaveError) {
+      setError(
+        homeSaveError instanceof Error
+          ? homeSaveError.message
+          : "Failed to update homepage content",
+      );
+    } finally {
+      setHomeSaving(false);
+    }
+  }
+
   const fullName = `${firstName} ${lastName}`.trim();
   const profileName = fullName || username || user?.email || "My profile";
 
@@ -311,12 +515,12 @@ export default function AccountPage() {
                     {uploadingImage ? (
                       <span className="upload-spinner"></span>
                     ) : (
-                      <svg 
-                        width="20" 
-                        height="20" 
-                        viewBox="0 0 24 24" 
-                        fill="none" 
-                        stroke="currentColor" 
+                      <svg
+                        width="20"
+                        height="20"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
                         strokeWidth="2"
                       >
                         <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
@@ -492,6 +696,188 @@ export default function AccountPage() {
                 </button>
               </form>
             </div>
+
+            {isAdmin && (
+              <div className="form-grid account-card">
+                <div className="panel-header">
+                  <div>
+                    <h3>Admin settings</h3>
+                    <p>Control access to advanced homepage management tools.</p>
+                  </div>
+                </div>
+
+                <div className="setting-row">
+                  <div>
+                    <strong className="setting-title">Homepage management</strong>
+                    <p className="subtext">
+                      Enable to edit dynamic homepage content from this account page.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    className={`setting-toggle ${showHomepageManagement ? "active" : ""}`}
+                    aria-pressed={showHomepageManagement}
+                    onClick={() => {
+                      const next = !showHomepageManagement;
+                      setShowHomepageManagement(next);
+                      if (typeof window !== "undefined") {
+                        window.localStorage.setItem(
+                          "petcare_show_homepage_management",
+                          String(next),
+                        );
+                      }
+                    }}
+                  >
+                    <span className="setting-toggle-knob" />
+                  </button>
+                </div>
+
+                {showHomepageManagement && (
+                  <form className="form-grid" onSubmit={onHomeContentSubmit}>
+                    {homeLoading && <PawLoader label="Loading homepage content" />}
+
+                    {!homeLoading && (
+                      <>
+                        <div className="field-row">
+                          <label>
+                            Badge
+                            <input
+                              value={homeBadge}
+                              onChange={(e) => setHomeBadge(e.target.value)}
+                              required
+                            />
+                          </label>
+                          <label>
+                            Hero description
+                            <input
+                              value={homeDescription}
+                              onChange={(e) => setHomeDescription(e.target.value)}
+                              required
+                            />
+                          </label>
+                        </div>
+
+                        <div className="field-row">
+                          <label>
+                            Title prefix
+                            <input
+                              value={homeTitlePrefix}
+                              onChange={(e) => setHomeTitlePrefix(e.target.value)}
+                              required
+                            />
+                          </label>
+                          <label>
+                            Title highlight
+                            <input
+                              value={homeTitleHighlight}
+                              onChange={(e) => setHomeTitleHighlight(e.target.value)}
+                              required
+                            />
+                          </label>
+                        </div>
+
+                        <div className="field-row">
+                          <label>
+                            Primary CTA label
+                            <input
+                              value={homePrimaryLabel}
+                              onChange={(e) => setHomePrimaryLabel(e.target.value)}
+                              required
+                            />
+                          </label>
+                          <label>
+                            Primary CTA href
+                            <input
+                              value={homePrimaryHref}
+                              onChange={(e) => setHomePrimaryHref(e.target.value)}
+                              required
+                            />
+                          </label>
+                        </div>
+
+                        <div className="field-row">
+                          <label>
+                            Secondary CTA label
+                            <input
+                              value={homeSecondaryLabel}
+                              onChange={(e) => setHomeSecondaryLabel(e.target.value)}
+                              required
+                            />
+                          </label>
+                          <label>
+                            Secondary CTA href
+                            <input
+                              value={homeSecondaryHref}
+                              onChange={(e) => setHomeSecondaryHref(e.target.value)}
+                              required
+                            />
+                          </label>
+                        </div>
+
+                        <label>
+                          Stats (one per line: Label|Value)
+                          <textarea
+                            rows={4}
+                            value={homeStatsText}
+                            onChange={(e) => setHomeStatsText(e.target.value)}
+                          />
+                        </label>
+
+                        <label>
+                          Features (one per line: Icon|Title|Description)
+                          <textarea
+                            rows={6}
+                            value={homeFeaturesText}
+                            onChange={(e) => setHomeFeaturesText(e.target.value)}
+                          />
+                        </label>
+
+                        <div className="field-row">
+                          <label>
+                            AI section title
+                            <input
+                              value={homeAiTitle}
+                              onChange={(e) => setHomeAiTitle(e.target.value)}
+                              required
+                            />
+                          </label>
+                          <label>
+                            AI section description
+                            <input
+                              value={homeAiDescription}
+                              onChange={(e) => setHomeAiDescription(e.target.value)}
+                              required
+                            />
+                          </label>
+                        </div>
+
+                        <label>
+                          AI disclaimer
+                          <textarea
+                            rows={2}
+                            value={homeAiDisclaimer}
+                            onChange={(e) => setHomeAiDisclaimer(e.target.value)}
+                            required
+                          />
+                        </label>
+
+                        <button
+                          className="btn btn-primary"
+                          type="submit"
+                          disabled={homeSaving}
+                        >
+                          {homeSaving ? (
+                            <PawLoader label="Saving homepage" />
+                          ) : (
+                            "Save homepage content"
+                          )}
+                        </button>
+                      </>
+                    )}
+                  </form>
+                )}
+              </div>
+            )}
           </section>
         )}
       </div>
@@ -520,6 +906,53 @@ export default function AccountPage() {
 
         .account-card .form-grid {
           flex: 1;
+        }
+
+        .setting-row {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 12px;
+          border: 1px solid rgba(31, 92, 74, 0.15);
+          background: rgba(31, 92, 74, 0.04);
+          border-radius: 12px;
+          padding: 12px;
+        }
+
+        .setting-title {
+          display: block;
+          color: var(--pine);
+          margin-bottom: 4px;
+        }
+
+        .setting-toggle {
+          width: 52px;
+          height: 30px;
+          border-radius: 999px;
+          border: none;
+          background: rgba(31, 92, 74, 0.25);
+          padding: 3px;
+          display: inline-flex;
+          align-items: center;
+          transition: background 0.2s ease;
+        }
+
+        .setting-toggle.active {
+          background: linear-gradient(130deg, #1f5c4a, #2f7a64);
+        }
+
+        .setting-toggle-knob {
+          width: 24px;
+          height: 24px;
+          border-radius: 50%;
+          background: #fff;
+          transform: translateX(0);
+          transition: transform 0.2s ease;
+          box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        .setting-toggle.active .setting-toggle-knob {
+          transform: translateX(22px);
         }
 
         .avatar-upload-btn {
