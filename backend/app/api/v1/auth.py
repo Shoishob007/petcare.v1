@@ -6,6 +6,8 @@ from sqlalchemy.orm import Session
 from app.core.uploads import delete_upload, save_upload
 from app.core.security import (
     create_access_token,
+    create_refresh_token,
+    decode_token,
     get_current_user,
     hash_password,
     require_roles,
@@ -17,6 +19,7 @@ from app.schemas.auth import (
     AuthChangePasswordRequest,
     AuthLoginRequest,
     AuthProfileUpdateRequest,
+    AuthRefreshRequest,
     AuthRegisterRequest,
     AuthRoleUpdateRequest,
     AuthTokenResponse,
@@ -70,7 +73,8 @@ def register(payload: AuthRegisterRequest, db: Session = Depends(get_db)):
     db.refresh(user)
 
     token = create_access_token(subject=user.id)
-    return AuthTokenResponse(access_token=token, user=user)
+    refresh_token = create_refresh_token(subject=user.id)
+    return AuthTokenResponse(access_token=token, refresh_token=refresh_token, user=user)
 
 
 @router.post("/login", response_model=AuthTokenResponse)
@@ -85,7 +89,24 @@ def login(payload: AuthLoginRequest, db: Session = Depends(get_db)):
     db.refresh(user)
 
     token = create_access_token(subject=user.id)
-    return AuthTokenResponse(access_token=token, user=user)
+    refresh_token = create_refresh_token(subject=user.id)
+    return AuthTokenResponse(access_token=token, refresh_token=refresh_token, user=user)
+
+
+@router.post("/refresh", response_model=AuthTokenResponse)
+def refresh_token(payload: AuthRefreshRequest, db: Session = Depends(get_db)):
+    user_id = decode_token(payload.refresh_token, expected_type="refresh")
+    user = db.query(User).filter(User.id == user_id, User.is_active == True).first()
+    if not user:
+        raise HTTPException(status_code=401, detail="Invalid refresh token.")
+
+    new_access_token = create_access_token(subject=user.id)
+    new_refresh_token = create_refresh_token(subject=user.id)
+    return AuthTokenResponse(
+        access_token=new_access_token,
+        refresh_token=new_refresh_token,
+        user=user,
+    )
 
 
 @router.get("/me", response_model=AuthUserResponse)

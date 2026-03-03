@@ -33,7 +33,7 @@ export default function LoginPage() {
 
       const data = await res.json();
 
-      setAuthSession(data.access_token, data.user);
+      setAuthSession(data.access_token, data.user, data.refresh_token);
       window.location.href = "/feed";
     } catch (e) {
       setError(e instanceof Error ? e.message : "Login failed");

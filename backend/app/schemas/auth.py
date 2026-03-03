@@ -45,6 +45,10 @@ class AuthRoleUpdateRequest(BaseModel):
     role: str = Field(min_length=3)
 
 
+class AuthRefreshRequest(BaseModel):
+    refresh_token: str
+
+
 class AuthUserResponse(BaseModel):
     id: str
     email: str
@@ -70,6 +74,7 @@ class AuthUserResponse(BaseModel):
 
 class AuthTokenResponse(BaseModel):
     access_token: str
+    refresh_token: str
     token_type: str = "bearer"
     user: AuthUserResponse
 

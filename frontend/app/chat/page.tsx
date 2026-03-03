@@ -204,6 +204,14 @@ export default function ChatPage() {
     setAuthReady((prev) => !prev);
   }, []);
 
+  useEffect(() => {
+    const syncAuthState = () => setAuthReady((prev) => !prev);
+    window.addEventListener("petcare-auth-updated", syncAuthState);
+    return () => {
+      window.removeEventListener("petcare-auth-updated", syncAuthState);
+    };
+  }, []);
+
   const upsertMessage = (chatId: string, message: ChatMessage) => {
     setMessagesByChat((prev) => {
       const current = prev[chatId] || [];
@@ -732,14 +740,14 @@ export default function ChatPage() {
               return prev.map((chat) =>
                 chat.id === chatId
                   ? {
-                      ...chat,
-                      last_message: message,
-                      updated_at: message.created_at,
-                      unread_count:
-                        !isActiveChat && !fromCurrentUser
-                          ? (chat.unread_count || 0) + 1
-                          : chat.unread_count || 0,
-                    }
+                    ...chat,
+                    last_message: message,
+                    updated_at: message.created_at,
+                    unread_count:
+                      !isActiveChat && !fromCurrentUser
+                        ? (chat.unread_count || 0) + 1
+                        : chat.unread_count || 0,
+                  }
                   : chat,
               );
             });
@@ -869,9 +877,8 @@ export default function ChatPage() {
                       <button
                         key={chat.id}
                         type="button"
-                        className={`chat-room-item ${active ? "active" : ""} ${
-                          hasUnread ? "unread" : ""
-                        }`}
+                        className={`chat-room-item ${active ? "active" : ""} ${hasUnread ? "unread" : ""
+                          }`}
                         onClick={() => setActiveChatId(chat.id)}
                       >
                         <div className="chat-room-head">
@@ -997,9 +1004,8 @@ export default function ChatPage() {
                         <div key={message.id} className={`chat-msg-row ${isMine ? "own" : ""}`}>
                           <Avatar src={senderAvatar} name={senderName} size="sm" />
                           <article
-                            className={`chat-msg ${isMine ? "own" : ""} ${
-                              unread ? "unread" : ""
-                            }`}
+                            className={`chat-msg ${isMine ? "own" : ""} ${unread ? "unread" : ""
+                              }`}
                           >
                             <div className="chat-msg-meta">
                               <span>{senderName}</span>
@@ -1021,7 +1027,7 @@ export default function ChatPage() {
                             ) : null}
 
                             {(message.message_type === "image" || message.message_type === "file") &&
-                            attachmentUrl ? (
+                              attachmentUrl ? (
                               message.message_type === "image" ? (
                                 <a href={attachmentUrl} target="_blank" rel="noreferrer">
                                   <img

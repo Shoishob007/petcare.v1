@@ -12,12 +12,11 @@ from fastapi import (
     WebSocketDisconnect,
     status,
 )
-from jose import JWTError, jwt
 from sqlalchemy import func
 from sqlalchemy.orm import Session, joinedload
 
 from app.core.config import settings
-from app.core.security import get_current_user
+from app.core.security import decode_token, get_current_user
 from app.core.uploads import save_upload
 from app.db.session import SessionLocal, get_db
 from app.models.chat import ChatMember, ChatMemberRequest, ChatMessage, ChatRoom
@@ -273,14 +272,7 @@ def _build_chat_summary(
 
 
 def _get_user_from_token(db: Session, token: str) -> User:
-    try:
-        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
-    except JWTError as exc:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token.") from exc
-
-    user_id = payload.get("sub")
-    if not user_id:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token.")
+    user_id = decode_token(token, expected_type="access")
 
     user = db.query(User).filter(User.id == user_id, User.is_active == True).first()
     if not user:

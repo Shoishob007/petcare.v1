@@ -14,7 +14,7 @@ This document explains your backend as a **learning system**: how requests flow,
 - **Server:** Uvicorn
 - **ORM:** SQLAlchemy 2.x (classic declarative style)
 - **Validation/serialization:** Pydantic v2
-- **DB engine options:** SQLite (default) and PostgreSQL (configurable)
+- **Database:** PostgreSQL
 - **Uploads:** Local filesystem (`backend/uploads`) served as static files
 
 ### Main architecture style
@@ -48,10 +48,9 @@ On startup in `app/main.py`:
 
 1. Import all models
 2. `Base.metadata.create_all(bind=engine)` creates missing tables
-3. SQLite schema patch helpers run (`ensure_sqlite_*_schema`) to add new columns if needed
-4. Upload directory is created
-5. Routers are mounted
-6. Seed runs once (`seed_data`) if no users exist
+3. Upload directory is created
+4. Routers are mounted
+5. Seed runs once (`seed_data`) if no users exist
 
 This gives very fast local setup for learning and demos.
 
@@ -65,21 +64,17 @@ This gives very fast local setup for learning and demos.
 
 Important fields:
 
-- `DB_ENGINE` supports `sqlite` (default), `postgresql`, and `mysql` URL generation
-- SQLite path default: `petcare.db`
+- `DB_USER`, `DB_PASSWORD`, `DB_HOST`, `DB_PORT`, `DB_NAME` build PostgreSQL connection URL
 - Security placeholders exist (`SECRET_KEY`, JWT settings), but auth is not fully implemented yet
 - Upload constraints exist in config, but route-level upload checks currently rely on `core/uploads.py`
 
 ### Database URL generation
 
-`get_database_url()` picks connection string by engine type:
-
-- SQLite: `sqlite:///.../petcare.db`
-- PostgreSQL / MySQL: URL from env credentials
+`get_database_url()` returns a PostgreSQL URL from env credentials.
 
 ### DB session (`app/db/session.py`)
 
-- SQLite engine uses `check_same_thread=False` and `StaticPool`
+- SQLAlchemy engine uses PostgreSQL with connection health checks (`pool_pre_ping=True`)
 - `SessionLocal` is injected per request
 - `get_db()` yields and closes session safely
 

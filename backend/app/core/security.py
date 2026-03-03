@@ -29,11 +29,47 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
 
 
 def create_access_token(subject: str, expires_delta: timedelta | None = None) -> str:
-    expire = datetime.utcnow() + (
-        expires_delta or timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+    return create_token(
+        subject=subject,
+        token_type="access",
+        expires_delta=expires_delta
+        or timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES),
     )
-    payload = {"sub": subject, "exp": expire}
+
+
+def create_refresh_token(subject: str, expires_delta: timedelta | None = None) -> str:
+    return create_token(
+        subject=subject,
+        token_type="refresh",
+        expires_delta=expires_delta
+        or timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS),
+    )
+
+
+def create_token(subject: str, token_type: str, expires_delta: timedelta) -> str:
+    expire = datetime.utcnow() + (
+        expires_delta
+    )
+    payload = {"sub": subject, "exp": expire, "type": token_type}
     return jwt.encode(payload, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
+
+
+def decode_token(token: str, expected_type: str) -> str:
+    credentials_error = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Could not validate credentials.",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+
+    try:
+        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+        user_id: str | None = payload.get("sub")
+        token_type: str | None = payload.get("type")
+        if not user_id or token_type != expected_type:
+            raise credentials_error
+        return user_id
+    except JWTError:
+        raise credentials_error
 
 
 def get_current_user(
@@ -45,13 +81,7 @@ def get_current_user(
         headers={"WWW-Authenticate": "Bearer"},
     )
 
-    try:
-        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
-        user_id: str | None = payload.get("sub")
-        if not user_id:
-            raise credentials_error
-    except JWTError:
-        raise credentials_error
+    user_id = decode_token(token, expected_type="access")
 
     user = db.query(User).filter(User.id == user_id, User.is_active == True).first()
     if not user:
