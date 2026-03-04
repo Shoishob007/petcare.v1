@@ -325,28 +325,32 @@ export default function CareTeamsPage() {
           </div>
         </header>
 
-        <section className="panel-spaced two-column">
-          <div className="panel">
-            <div className="panel-header">
-              <h2>Coverage areas</h2>
-              <p>How the team supports local care.</p>
+        <section className="panel panel-spaced">
+          <div className="panel-header">
+            <div>
+              <h2>Care operations</h2>
+              <p className="subtext">
+                Structured workflows and standards for dependable support.
+              </p>
             </div>
-            <ul className="feature-list">
-              <li>Emergency response for urgent reports.</li>
-              <li>Foster and volunteer coordination for recovery care.</li>
-              <li>Behavior guidance to keep pets calm during transitions.</li>
-            </ul>
           </div>
-          <div className="panel">
-            <div className="panel-header">
-              <h2>Community standards</h2>
-              <p>Keep care consistent and respectful.</p>
-            </div>
-            <ul className="feature-list">
-              <li>Share availability to prevent missed handoffs.</li>
-              <li>Document specialties so families find the right help.</li>
-              <li>Use clear contact details to coordinate quickly.</li>
-            </ul>
+          <div className="grid-list">
+            <article className="support-card">
+              <h3>Coverage areas</h3>
+              <ul className="feature-list">
+                <li>Emergency response for urgent reports.</li>
+                <li>Foster and volunteer coordination for recovery care.</li>
+                <li>Behavior guidance to keep pets calm during transitions.</li>
+              </ul>
+            </article>
+            <article className="support-card">
+              <h3>Community standards</h3>
+              <ul className="feature-list">
+                <li>Share availability to prevent missed handoffs.</li>
+                <li>Document specialties so families find the right help.</li>
+                <li>Use clear contact details to coordinate quickly.</li>
+              </ul>
+            </article>
           </div>
         </section>
 

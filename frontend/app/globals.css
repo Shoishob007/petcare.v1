@@ -1507,12 +1507,6 @@ textarea {
   border-color: rgba(31, 92, 74, 0.25);
 }
 
-.two-column {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 24px;
-}
-
 .feature-list {
   display: grid;
   gap: 10px;

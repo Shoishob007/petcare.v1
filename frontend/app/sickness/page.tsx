@@ -261,9 +261,8 @@ export default function SicknessPage() {
         return false;
       }
       if (!normalized) return true;
-      const haystack = `${item.name} ${item.summary ?? ""} ${
-        item.symptoms ?? ""
-      } ${item.remedies ?? ""}`.toLowerCase();
+      const haystack = `${item.name} ${item.summary ?? ""} ${item.symptoms ?? ""
+        } ${item.remedies ?? ""}`.toLowerCase();
       return haystack.includes(normalized);
     });
   }, [items, query, severityFilter, speciesFilter, mediaFilter]);
@@ -559,23 +558,28 @@ export default function SicknessPage() {
           </section>
         ) : null}
 
-        <section className="panel-spaced two-column">
-          <div className="panel">
-            <div className="panel-header">
-              <h2>Care guide goals</h2>
-              <p>Make symptoms and remedies easy to follow.</p>
+        <section className="panel panel-spaced">
+          <div className="panel-header">
+            <div>
+              <h2>Condition intelligence</h2>
+              <p className="subtext">
+                Keep symptoms, remedies, and triage signals organized for faster decisions.
+              </p>
             </div>
-            <ul className="feature-list">
-              <li>Document common symptoms so care teams respond faster.</li>
-              <li>Capture remedies that help stabilize pets quickly.</li>
-              <li>Flag critical cases with high severity.</li>
-            </ul>
           </div>
-          <div className="panel">
-            <div className="panel-header">
-              <h2>Quick filters</h2>
-              <p>Find conditions faster.</p>
-            </div>
+          <div className="grid-list">
+            <article className="support-card">
+              <h3>Care guide goals</h3>
+              <ul className="feature-list">
+                <li>Document common symptoms so care teams respond faster.</li>
+                <li>Capture remedies that help stabilize pets quickly.</li>
+                <li>Flag critical cases with high severity.</li>
+              </ul>
+            </article>
+          </div>
+          <div>
+            <h3>Quick filters</h3>
+            <p className="subtext">Find conditions faster.</p>
             <div className="quick-filters-row">
               <label className="field">
                 Search

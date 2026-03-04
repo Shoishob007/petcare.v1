@@ -14,7 +14,6 @@ from app.api.v1.sicknesses import router as sicknesses_router
 from app.api.v1.updates import router as updates_router
 from app.core.config import UPLOAD_DIR
 import app.models
-from app.db.seed import seed_data
 from app.db.session import (
     Base,
     engine,
@@ -56,11 +55,6 @@ app.include_router(feed_router, prefix="/api/v1")
 app.include_router(updates_router, prefix="/api/v1")
 app.include_router(chat_router, prefix="/api/v1")
 app.include_router(home_page_content_router, prefix="/api/v1")
-
-
-@app.on_event("startup")
-def load_seed_data() -> None:
-    seed_data()
 
 
 @app.get("/")
