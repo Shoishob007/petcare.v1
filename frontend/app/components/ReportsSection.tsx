@@ -7,6 +7,8 @@ import Dropdown from "./Dropdown";
 import MediaGrid from "./MediaGrid";
 import PawLoader from "./PawLoader";
 import { useToast } from "./Toast";
+import { apiFetch } from "../lib/api";
+import { getAuthToken, resolveAuthImageUrl } from "../lib/auth";
 
 type ReportImage = {
   id: string;
@@ -48,9 +50,6 @@ type ReportCreate = {
   urgency?: string;
   reporter_name?: string;
 };
-
-const API_ROOT = "http://127.0.0.1:8000";
-const API_BASE = `${API_ROOT}/api/v1`;
 
 const STATUS_OPTIONS = [
   { label: "Open", value: "open" },
@@ -123,11 +122,21 @@ export default function ReportsSection() {
 
   const canSubmit = useMemo(() => title.trim().length > 0, [title]);
 
+  function requireAuthToken() {
+    const token = getAuthToken();
+    if (!token) {
+      setError("Please login to perform this action.");
+      window.location.href = "/login";
+      return null;
+    }
+    return token;
+  }
+
   async function fetchReports() {
     setLoadingReports(true);
     setError(null);
     try {
-      const res = await fetch(`${API_BASE}/reports`, { cache: "no-store" });
+      const res = await apiFetch(`/reports`, { cache: "no-store" });
       if (!res.ok) {
         throw new Error(`Failed to load reports (${res.status})`);
       }
@@ -148,13 +157,17 @@ export default function ReportsSection() {
 
   async function uploadReportImages(reportId: string, selected: File[]) {
     if (selected.length === 0) return [];
+    const token = requireAuthToken();
+    if (!token) return [];
+
     const formData = new FormData();
     selected.forEach((file) => {
       formData.append("files", file);
     });
 
-    const res = await fetch(`${API_BASE}/reports/${reportId}/images`, {
+    const res = await apiFetch(`/reports/${reportId}/images`, {
       method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
       body: formData,
     });
 
@@ -167,8 +180,12 @@ export default function ReportsSection() {
 
   async function reactToReport(reportId: string) {
     try {
-      const res = await fetch(`${API_BASE}/reports/${reportId}/reactions`, {
+      const token = requireAuthToken();
+      if (!token) return;
+
+      const res = await apiFetch(`/reports/${reportId}/reactions`, {
         method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
       });
       if (!res.ok) {
         throw new Error(`Failed to react (${res.status})`);
@@ -189,7 +206,7 @@ export default function ReportsSection() {
   }
 
   async function fetchComments(reportId: string) {
-    const res = await fetch(`${API_BASE}/reports/${reportId}/comments`, {
+    const res = await apiFetch(`/reports/${reportId}/comments`, {
       cache: "no-store",
     });
     if (!res.ok) {
@@ -219,9 +236,15 @@ export default function ReportsSection() {
     const draft = parentId ? replyDraft[draftKey] : commentDraft[reportId];
     if (!draft?.trim()) return;
     try {
-      const res = await fetch(`${API_BASE}/reports/${reportId}/comments`, {
+      const token = requireAuthToken();
+      if (!token) return;
+
+      const res = await apiFetch(`/reports/${reportId}/comments`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
         body: JSON.stringify({
           body: draft.trim(),
           parent_id: parentId || undefined,
@@ -267,9 +290,15 @@ export default function ReportsSection() {
     };
 
     try {
-      const res = await fetch(`${API_BASE}/reports`, {
+      const token = requireAuthToken();
+      if (!token) return;
+
+      const res = await apiFetch(`/reports`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
         body: JSON.stringify(payload),
       });
       if (!res.ok) {
@@ -322,9 +351,15 @@ export default function ReportsSection() {
     setActionLoading(true);
     setError(null);
     try {
-      const res = await fetch(`${API_BASE}/reports/${activeReport.id}`, {
+      const token = requireAuthToken();
+      if (!token) return;
+
+      const res = await apiFetch(`/reports/${activeReport.id}`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
         body: JSON.stringify({
           title: editTitle.trim(),
           description: editDescription.trim() || undefined,
@@ -370,8 +405,12 @@ export default function ReportsSection() {
     setActionLoading(true);
     setError(null);
     try {
-      const res = await fetch(`${API_BASE}/reports/${activeReport.id}`, {
+      const token = requireAuthToken();
+      if (!token) return;
+
+      const res = await apiFetch(`/reports/${activeReport.id}`, {
         method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
       });
       if (!res.ok) {
         throw new Error(`Failed to delete report (${res.status})`);
@@ -476,7 +515,7 @@ export default function ReportsSection() {
                   <MediaGrid
                     items={report.images.map((image) => ({
                       id: image.id,
-                      src: `${API_ROOT}${image.url}`,
+                      src: resolveAuthImageUrl(image.url) || image.url,
                       alt: "Report upload",
                     }))}
                   />

@@ -12,7 +12,7 @@ from app.api.v1.home_page_content import router as home_page_content_router
 from app.api.v1.reports import router as reports_router
 from app.api.v1.sicknesses import router as sicknesses_router
 from app.api.v1.updates import router as updates_router
-from app.core.config import UPLOAD_DIR
+from app.core.config import UPLOAD_DIR, settings
 import app.models
 from app.db.session import (
     Base,
@@ -25,19 +25,9 @@ UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
 app = FastAPI(title="PetCare Hub API")
 
-LOCAL_ORIGINS = [
-    "http://localhost:5000",
-    "http://127.0.0.1:5000",
-    "http://localhost:3000",
-    "http://127.0.0.1:3000",
-    "http://localhost:5173",
-    "http://127.0.0.1:5173",
-]
-
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=LOCAL_ORIGINS,
-    allow_origin_regex=r"^http://(localhost|127\.0\.0\.1)(:\d+)?$",
+    allow_origins=settings.CORS_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

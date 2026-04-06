@@ -30,8 +30,9 @@ type SicknessImage = {
   created_at: string;
 };
 
-const API_ROOT = "http://127.0.0.1:8000";
-const API_BASE = `${API_ROOT}/api/v1`;
+const API_ROOT =
+  process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "") || "";
+const API_BASE = API_ROOT ? `${API_ROOT}/api/v1` : "/api/v1";
 
 const SEVERITY_OPTIONS = [
   { label: "All severities", value: "all" },

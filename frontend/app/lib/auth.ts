@@ -22,9 +22,19 @@ export type AuthUser = {
 const TOKEN_KEY = "petcare_token";
 const REFRESH_TOKEN_KEY = "petcare_refresh_token";
 const USER_KEY = "petcare_user";
+const rawConfiguredApiRoot = process.env.NEXT_PUBLIC_API_URL?.replace(
+  /\/$/,
+  "",
+);
+const isLocalHost =
+  typeof window !== "undefined" &&
+  ["localhost", "127.0.0.1"].includes(window.location.hostname);
+const pointsToLocalhost =
+  Boolean(rawConfiguredApiRoot) &&
+  /https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(rawConfiguredApiRoot);
 const AUTH_API_ROOT =
-  process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "") ||
-  "http://localhost:8000";
+  (pointsToLocalhost && !isLocalHost ? "" : rawConfiguredApiRoot) ||
+  (isLocalHost ? "http://localhost:8000" : "");
 
 export function getAuthToken(): string | null {
   if (typeof window === "undefined") return null;

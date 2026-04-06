@@ -6,12 +6,28 @@ import {
   setAuthSession,
 } from "./auth";
 
-const API_ROOTS = [
-  process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "") ||
-    "http://localhost:8000",
-  "http://127.0.0.1:8000",
-  "http://localhost:8000",
-].filter((root, index, arr) => Boolean(root) && arr.indexOf(root) === index);
+const rawConfiguredApiRoot = process.env.NEXT_PUBLIC_API_URL?.replace(
+  /\/$/,
+  "",
+);
+const isLocalHost =
+  typeof window !== "undefined" &&
+  ["localhost", "127.0.0.1"].includes(window.location.hostname);
+const pointsToLocalhost =
+  Boolean(rawConfiguredApiRoot) &&
+  /https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(rawConfiguredApiRoot);
+const configuredApiRoot =
+  pointsToLocalhost && !isLocalHost ? "" : rawConfiguredApiRoot;
+const localFallbackRoot = isLocalHost ? "http://localhost:8000" : "";
+const API_ROOTS = configuredApiRoot
+  ? [configuredApiRoot]
+  : localFallbackRoot
+    ? [localFallbackRoot]
+    : [];
+const CONFIG_ERROR =
+  pointsToLocalhost && !isLocalHost
+    ? "Invalid NEXT_PUBLIC_API_URL: localhost cannot be used from deployed frontend. Set NEXT_PUBLIC_API_URL to your public backend URL."
+    : "NEXT_PUBLIC_API_URL is not configured for this environment.";
 
 let refreshInFlight: Promise<string | null> | null = null;
 
@@ -87,6 +103,10 @@ export async function apiFetch(
   path: string,
   init?: RequestInit,
 ): Promise<Response> {
+  if (!API_ROOTS.length) {
+    throw new Error(CONFIG_ERROR);
+  }
+
   let lastError: Error | null = null;
 
   for (const root of API_ROOTS) {

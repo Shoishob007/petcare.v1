@@ -8,6 +8,7 @@ engine = create_engine(
     DATABASE_URL,
     pool_pre_ping=True,
     echo=False,
+    connect_args={"sslmode": "require"} if "sslmode=" in DATABASE_URL else {},
 )
 
 SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)

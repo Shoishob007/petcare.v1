@@ -77,11 +77,8 @@ type ChatMemberRequest = {
   reviewed_by?: ChatUserSummary | null;
 };
 
-const API_ROOTS = [
-  process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "") || "http://localhost:8000",
-  "http://127.0.0.1:8000",
-  "http://localhost:8000",
-].filter((root, index, arr) => Boolean(root) && arr.indexOf(root) === index);
+const configuredApiRoot = process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "");
+const API_ROOTS = configuredApiRoot ? [configuredApiRoot] : [""];
 
 const WS_ROOTS = API_ROOTS.map((root) =>
   root.startsWith("https://")

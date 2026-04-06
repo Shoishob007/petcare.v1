@@ -58,14 +58,10 @@ type UpdatesBoardProps = {
   subtitle?: string;
 };
 
-const API_ROOTS = [
-  process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "") ||
-    "http://localhost:8000",
-  "http://127.0.0.1:8000",
-  "http://localhost:8000",
-].filter((root, index, arr) => Boolean(root) && arr.indexOf(root) === index);
+const configuredApiRoot = process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "");
+const API_ROOTS = configuredApiRoot ? [configuredApiRoot] : [""];
 
-const DEFAULT_API_ROOT = API_ROOTS[0] || "http://localhost:8000";
+const DEFAULT_API_ROOT = API_ROOTS[0];
 
 async function fetchWithApiFallback(
   path: string,
@@ -265,7 +261,7 @@ export default function UpdatesBoard({
       const data = (await res.json()) as UpdateItem[];
       setItems(data);
       data.slice(0, 5).forEach((item) => {
-        fetchComments(item).catch(() => {});
+        fetchComments(item).catch(() => { });
       });
     } catch (e) {
       const errorMsg = e instanceof Error ? e.message : "Unknown error";
@@ -783,9 +779,8 @@ export default function UpdatesBoard({
         if (item.urgency !== urgencyFilter) return false;
       }
       if (!normalized) return true;
-      const haystack = `${item.title} ${item.content || ""} ${
-        item.location || ""
-      } ${item.tags || ""}`.toLowerCase();
+      const haystack = `${item.title} ${item.content || ""} ${item.location || ""
+        } ${item.tags || ""}`.toLowerCase();
       return haystack.includes(normalized);
     });
   }, [items, typeFilter, categoryFilter, statusFilter, urgencyFilter, query]);
@@ -895,20 +890,20 @@ export default function UpdatesBoard({
           const tags = parseTags(item.tags);
           const mediaItems = item.images?.length
             ? item.images.map((image) => ({
-                id: image.id,
-                src: `${DEFAULT_API_ROOT}${image.url}`,
-                alt: item.title,
-              }))
+              id: image.id,
+              src: `${DEFAULT_API_ROOT}${image.url}`,
+              alt: item.title,
+            }))
             : item.image_url
               ? [
-                  {
-                    id: `${item.id}-image`,
-                    src: item.image_url.startsWith("/uploads/")
-                      ? `${DEFAULT_API_ROOT}${item.image_url}`
-                      : item.image_url,
-                    alt: item.title,
-                  },
-                ]
+                {
+                  id: `${item.id}-image`,
+                  src: item.image_url.startsWith("/uploads/")
+                    ? `${DEFAULT_API_ROOT}${item.image_url}`
+                    : item.image_url,
+                  alt: item.title,
+                },
+              ]
               : [];
           const displayName =
             item.item_type === "report"
