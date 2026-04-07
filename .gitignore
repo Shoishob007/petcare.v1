@@ -74,6 +74,9 @@ secrets.py
 config.py
 settings/local.py
 
+# Keep backend runtime config module tracked
+!backend/app/core/config.py
+
 # Temporary files
 *.tmp
 *.temp
