@@ -1,4 +1,4 @@
-from typing import List, Optional, Union
+from typing import Dict, List, Optional, Union
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from sqlalchemy.orm import Session
@@ -140,6 +140,7 @@ def list_updates(
     item_type: Optional[str] = None,
     limit: int = 200,
     offset: int = 0,
+    include_comments: bool = False,
     db: Session = Depends(get_db),
 ):
     if limit <= 0:
@@ -165,7 +166,31 @@ def list_updates(
                 .limit(fetch_size)
                 .all()
             )
-            items = [post_to_response(post) for post in posts]
+            post_ids = [post.id for post in posts]
+            comments_by_post: Dict[str, List[CommunityPostComment]] = {}
+            if include_comments and post_ids:
+                comment_rows = (
+                    db.query(CommunityPostComment)
+                    .filter(CommunityPostComment.post_id.in_(post_ids))
+                    .order_by(CommunityPostComment.created_at.asc())
+                    .all()
+                )
+                for row in comment_rows:
+                    comments_by_post.setdefault(row.post_id, []).append(row)
+
+            items = [
+                post_to_response(post).model_copy(
+                    update={
+                        "comments": [
+                            post_comment_to_response(comment)
+                            for comment in comments_by_post.get(post.id, [])
+                        ]
+                    }
+                )
+                if include_comments
+                else post_to_response(post)
+                for post in posts
+            ]
         return items[offset : offset + limit]
 
     fetch_size = max(limit + offset, limit)
@@ -182,9 +207,33 @@ def list_updates(
         .all()
     )
 
+    community_comments_by_post: Dict[str, List[CommunityPostComment]] = {}
+    if include_comments and community_items:
+        community_post_ids = [item.id for item in community_items]
+        comment_rows = (
+            db.query(CommunityPostComment)
+            .filter(CommunityPostComment.post_id.in_(community_post_ids))
+            .order_by(CommunityPostComment.created_at.asc())
+            .all()
+        )
+        for row in comment_rows:
+            community_comments_by_post.setdefault(row.post_id, []).append(row)
+
     items: List[UpdateResponse] = [
         report_to_response(report) for report in report_items
-    ] + [post_to_response(post) for post in community_items]
+    ] + [
+        post_to_response(post).model_copy(
+            update={
+                "comments": [
+                    post_comment_to_response(comment)
+                    for comment in community_comments_by_post.get(post.id, [])
+                ]
+            }
+        )
+        if include_comments
+        else post_to_response(post)
+        for post in community_items
+    ]
     items.sort(key=lambda item: item.created_at, reverse=True)
     return items[offset : offset + limit]
 

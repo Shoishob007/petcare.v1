@@ -1,8 +1,9 @@
 from typing import List
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from sqlalchemy.orm import Session
 
+from app.core.uploads import save_upload
 from app.core.security import require_roles
 from app.db.session import get_db
 from app.models.care_team import CareTeamMember
@@ -13,6 +14,15 @@ from app.schemas.care_team import (
 )
 
 router = APIRouter()
+
+
+@router.post("/care-team/upload-photo")
+def upload_care_team_photo(
+    file: UploadFile = File(...),
+    _admin=Depends(require_roles("admin")),
+):
+    file_name = save_upload(file)
+    return {"photo_url": f"/uploads/{file_name}"}
 
 
 @router.post("/care-team", response_model=CareTeamMemberResponse)

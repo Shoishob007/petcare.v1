@@ -29,6 +29,7 @@ class UpdateResponse(BaseModel):
     reaction_count: int = 0
     created_at: datetime
     images: List[UpdateImageResponse] = []
+    comments: List["UpdateCommentResponse"] = []
 
     model_config = {"from_attributes": True}
 
@@ -82,3 +83,6 @@ class UpdateCommentResponse(BaseModel):
     created_at: datetime
 
     model_config = {"from_attributes": True}
+
+
+UpdateResponse.model_rebuild()

@@ -1,0 +1,94 @@
+@import url("https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&family=Sora:wght@600;700;800&display=swap");
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Manrope", ui-sans-serif, system-ui, sans-serif;
+  --font-headline: "Sora", sans-serif;
+
+  --color-surface: #f6f9fc;
+  --color-surface-dim: #d6dee7;
+  --color-surface-bright: #ffffff;
+  --color-surface-container-lowest: #ffffff;
+  --color-surface-container-low: #f0f5fb;
+  --color-surface-container: #e8eef6;
+  --color-surface-container-high: #dee7f2;
+  --color-surface-container-highest: #d3deeb;
+
+  --color-on-surface: #0d1b2a;
+  --color-on-surface-variant: #495a72;
+
+  --color-primary: #0046ff;
+  --color-primary-container: #0f3fb8;
+  --color-on-primary: #ffffff;
+  --color-on-primary-container: #dbe7ff;
+
+  --color-secondary: #0f766e;
+  --color-secondary-container: #c7efe8;
+  --color-on-secondary: #ffffff;
+  --color-on-secondary-container: #0a4f4a;
+  --color-secondary-fixed: #d2f4ef;
+
+  --color-tertiary: #ef6c00;
+  --color-tertiary-container: #ffd7b6;
+  --color-on-tertiary: #ffffff;
+  --color-on-tertiary-container: #7a3300;
+
+  --color-error: #b42318;
+  --color-error-container: #ffdcd6;
+  --color-on-error: #ffffff;
+  --color-on-error-container: #7f1f16;
+
+  --color-outline: #70839e;
+  --color-outline-variant: #bdd0e6;
+
+  --shadow-editorial: 0 20px 48px rgba(13, 27, 42, 0.12);
+  --shadow-float: 0 14px 40px rgba(0, 70, 255, 0.15);
+}
+
+@layer base {
+  body {
+    @apply bg-surface text-on-surface font-sans antialiased selection:bg-secondary-container selection:text-on-secondary-container;
+    background-image:
+      radial-gradient(circle at 6% 4%, rgba(0, 70, 255, 0.07), transparent 24%),
+      radial-gradient(
+        circle at 92% 0%,
+        rgba(15, 118, 110, 0.08),
+        transparent 32%
+      ),
+      linear-gradient(to bottom, #f8fbff, #f4f8fc 38%, #f6f9fc 100%);
+    min-height: 100vh;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    @apply font-headline tracking-tight;
+  }
+
+  button {
+    @apply cursor-pointer;
+  }
+}
+
+.editorial-overlap {
+  @apply relative z-10 -mb-10 md:-mb-16;
+}
+
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.hide-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.soft-card {
+  @apply bg-surface-container-lowest border border-outline-variant/35 rounded-3xl shadow-[var(--shadow-editorial)];
+}
+
+.glass-card {
+  @apply bg-white/80 border border-white/70 backdrop-blur;
+}
